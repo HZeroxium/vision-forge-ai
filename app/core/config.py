@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     DO_SPACES_BUCKET: str = Field("vision-forge", env="DO_SPACES_BUCKET")
     DO_SPACES_BASE_URL: str = Field("", env="DO_SPACES_BASE_URL")
 
+    FFMPEG_PATH: str = Field("ffmpeg", env="FFMPEG_PATH")
+
     class Config:
         env_file = ".env"
         case_sensitive = True

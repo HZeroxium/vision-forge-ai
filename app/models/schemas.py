@@ -59,3 +59,18 @@ class CreateAudioRequest(BaseModel):
 
 class CreateAudioResponse(BaseModel):
     audio_url: str
+
+
+class CreateVideoRequest(BaseModel):
+    image_urls: List[str] = Field(
+        ..., description="List of image URLs to include in the video"
+    )
+    audio_url: str = Field(..., description="URL of the audio track to use")
+    title: Optional[str] = Field(None, description="Optional title for the video")
+    transition_duration: Optional[float] = Field(
+        1.0, description="Duration of transition effects in seconds (default: 1.0)"
+    )
+
+
+class CreateVideoResponse(BaseModel):
+    video_url: str
