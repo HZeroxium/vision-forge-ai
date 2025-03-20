@@ -63,7 +63,6 @@ swagger-ui/
 *.h5
 *.model
 *.joblib
-models/
 data/
 
 # OS specific files
@@ -71,4 +70,4 @@ data/
 Thumbs.db
 
 # Generated images
-images
+output
