@@ -7,7 +7,6 @@ import httpx
 import random
 import logging
 from mutagen.mp3 import MP3
-from pydub import AudioSegment
 from app.core.config import settings
 from app.models.schemas import CreateVideoRequest
 from app.utils.upload import upload_to_do_spaces
