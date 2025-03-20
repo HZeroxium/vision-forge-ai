@@ -2,31 +2,27 @@
 from fastapi import APIRouter, HTTPException
 from app.models.schemas import CreateImageRequest, CreateImageResponse
 from app.services.image import generate_image_from_prompt, create_image_prompt
-import logging
+from app.utils.logger import get_logger
+from app.constants.dummy import DUMMY_IMAGE_RESPONSE
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @router.post("/generate", response_model=CreateImageResponse)
 async def generate_image(request: CreateImageRequest):
     """
-    Endpoint to generate an image based on a prompt and style.
-    Uses OpenAI's DALL-E API to create the image.
-
-    Returns the URL of the generated image.
+    Endpoint to generate an image based on a prompt.
     """
-    try:
-        logger.info(f"Generating image with prompt: {request.prompt[:50]}...")
+    logger.info(f"Generating image with prompt: {request.prompt[:50]}...")
+    image_url = await generate_image_from_prompt(request.prompt)
+    logger.info(f"Image generation successful, URL: {image_url}")
+    return CreateImageResponse(image_url=image_url)
 
-        # Call the image generation service
-        image_url = generate_image_from_prompt(request.prompt)
 
-        logger.info(f"Image generation successful, URL: {image_url}")
-        return CreateImageResponse(image_url=image_url)
-
-    except Exception as e:
-        logger.error(f"Image generation failed: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to generate image: {str(e)}"
-        )
+@router.post("/generate/dummy", response_model=CreateImageResponse)
+async def generate_dummy_image(request: CreateImageRequest):
+    """
+    Dummy endpoint for testing image generation.
+    """
+    return DUMMY_IMAGE_RESPONSE

@@ -1,63 +1,37 @@
 # app/routers/audio.py
-
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from app.models.schemas import CreateAudioRequest, CreateAudioResponse
 from app.services.audio import (
     create_audio_from_script_openai,
     create_audio_from_script_google,
 )
-import logging
+from app.utils.logger import get_logger
+from app.constants.dummy import DUMMY_AUDIO_RESPONSE
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @router.post("/tts/openai", response_model=CreateAudioResponse)
 async def synthesize_speech_openai(request: CreateAudioRequest):
     """
-    Endpoint to convert script text into spoken audio.
-    Uses OpenAI's text-to-speech API to generate natural-sounding speech.
-
-    Returns the URL of the generated audio file.
+    Endpoint to convert script text into spoken audio using OpenAI TTS.
     """
-    try:
-        logger.info(f"Creating audio for script of length: {len(request.script)} chars")
-
-        # Call the audio service to generate speech
-        audio_url = create_audio_from_script_openai(request.script)
-
-        logger.info(f"Audio generation and upload successful, URL: {audio_url}")
-        return CreateAudioResponse(audio_url=audio_url)
-
-    except Exception as e:
-        logger.error(f"Audio generation failed: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to generate audio: {str(e)}"
-        )
+    logger.info(f"Creating audio for script of length: {len(request.script)}")
+    audio_url = create_audio_from_script_openai(request.script)
+    logger.info(f"Audio generation successful, URL: {audio_url}")
+    return CreateAudioResponse(audio_url=audio_url)
 
 
 @router.post("/tts/google", response_model=CreateAudioResponse)
 async def synthesize_speech_google(request: CreateAudioRequest):
     """
-    Endpoint to convert script text into spoken audio.
-    Uses Google's text-to-speech API to generate natural-sounding speech.
-
-    Returns the URL of the generated audio file.
+    Endpoint to convert script text into spoken audio using Google TTS.
     """
-    try:
-        logger.info(f"Creating audio for script of length: {len(request.script)} chars")
-
-        # Call the audio service to generate speech
-        audio_url = create_audio_from_script_google(request.script)
-
-        logger.info(f"Audio generation and upload successful, URL: {audio_url}")
-        return CreateAudioResponse(audio_url=audio_url)
-
-    except Exception as e:
-        logger.error(f"Audio generation failed: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to generate audio: {str(e)}"
-        )
+    logger.info(f"Creating audio for script of length: {len(request.script)}")
+    audio_url = create_audio_from_script_google(request.script)
+    logger.info(f"Audio generation successful, URL: {audio_url}")
+    return CreateAudioResponse(audio_url=audio_url)
 
 
 @router.get("/tts/openai/voices")
@@ -74,3 +48,11 @@ async def list_available_voices():
         {"id": "shimmer", "description": "Clear, gentle voice"},
     ]
     return {"voices": voices}
+
+
+@router.post("/tts/dummy", response_model=CreateAudioResponse)
+async def generate_dummy_audio(request: CreateAudioRequest):
+    """
+    Dummy endpoint for testing audio generation.
+    """
+    return DUMMY_AUDIO_RESPONSE

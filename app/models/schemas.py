@@ -1,8 +1,6 @@
 # app/models/schemas.py
-# Pydantic models for request and response validation
-
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List, Dict
 
 
 class CreateScriptRequest(BaseModel):
@@ -28,7 +26,11 @@ class CreateScriptResponse(BaseModel):
 
 
 class CreateImageRequest(BaseModel):
-    prompt: str
+    prompt: str = Field(
+        ...,
+        description="The text prompt to generate an image",
+        example="A futuristic cityscape at sunset",
+    )
 
 
 class CreateImageResponse(BaseModel):
@@ -36,21 +38,24 @@ class CreateImageResponse(BaseModel):
 
 
 class CreateImagePromptsRequest(BaseModel):
-    content: str
-    style: str
+    content: str = Field(
+        ..., description="The script content to extract image prompts from"
+    )
+    style: str = Field(..., description="Desired visual style for the image prompts")
 
 
 class CreateImagePromptsResponse(BaseModel):
-    prompts: list[dict]
+    prompts: List[Dict[str, str]]
     style: str
 
 
 class CreateAudioRequest(BaseModel):
-    script: str
+    script: str = Field(
+        ...,
+        description="The script text to be converted into audio",
+        example="This is a sample script.",
+    )
 
 
 class CreateAudioResponse(BaseModel):
     audio_url: str
-
-
-# Additional models can be defined here as needed for other endpoints

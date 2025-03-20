@@ -1,26 +1,26 @@
-# Entry point for the FastAPI application
-
-from fastapi import FastAPI
+# app/main.py
+import os
+from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from app.routers import (
-    text,
-    image,
-    video,
-    audio,
-)  # Import routers (định nghĩa ở bước khác nếu cần)
+from app.routers import text, image, video, audio
 from app.utils.logger import setup_logger
 from app.middlewares.request_logger import RequestLoggerMiddleware
+from app.middlewares.error_handlers import (
+    global_exception_handler,
+    http_exception_handler,
+)
 from app.core.config import settings
-import os
 
-
-# Setup logging configuration
 setup_logger()
 
 app = FastAPI(title="FastAPI AI Server")
 
-# Add middleware to log incoming requests and responses
+# Add middlewares
 app.add_middleware(RequestLoggerMiddleware)
+
+# Register global exception handlers
+app.add_exception_handler(Exception, global_exception_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
 
 # Create output directory if it doesn't exist
 os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
@@ -28,13 +28,12 @@ os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
 # Mount static files directory to serve generated images
 app.mount("/images", StaticFiles(directory=settings.OUTPUT_DIR), name="images")
 
-# Include routers (giả định các routers đã được định nghĩa, ở đây chỉ để hoàn thiện kiến trúc)
+# Include routers
 app.include_router(text.router, prefix="/text")
 app.include_router(image.router, prefix="/image")
 app.include_router(video.router, prefix="/video")
 app.include_router(audio.router, prefix="/audio")
 
-# Run the app using uvicorn when executed directly
 if __name__ == "__main__":
     import uvicorn
 

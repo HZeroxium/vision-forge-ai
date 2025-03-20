@@ -1,5 +1,5 @@
 # app/routers/text.py
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from app.models.schemas import (
     CreateScriptRequest,
     CreateScriptResponse,
@@ -7,62 +7,46 @@ from app.models.schemas import (
     CreateImagePromptsResponse,
 )
 from app.services.text import create_script, create_image_prompts
-import logging
+from app.utils.logger import get_logger
+from app.constants.dummy import DUMMY_SCRIPT_RESPONSE, DUMMY_IMAGE_PROMPTS_RESPONSE
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @router.post("/script/create", response_model=CreateScriptResponse)
 async def create_scientific_script(request: CreateScriptRequest):
     """
     Endpoint to create a scientific video script.
-
-    Takes a title, style preference, and language code, then generates
-    a complete, structured script optimized for educational video production.
-
-    Returns the generated script content.
     """
-    try:
-        logger.info(f"Creating script for: {request.title}")
-
-        # Call the script creation service
-        script_response = await create_script(request)
-
-        logger.info(f"Script creation successful for: {request.title}")
-        return script_response
-
-    except Exception as e:
-        logger.error(f"Script creation failed: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to generate script: {str(e)}"
-        )
+    logger.info(f"Creating script for: {request.title}")
+    script_response = await create_script(request)
+    logger.info(f"Script creation successful for: {request.title}")
+    return script_response
 
 
 @router.post("/create-image-prompts", response_model=CreateImagePromptsResponse)
 async def generate_image_prompts(request: CreateImagePromptsRequest):
     """
     Endpoint to create a list of image prompts from script content.
-
-    Takes script content and a desired style, then generates
-    a series of detailed image prompts that would work well
-    to illustrate the key concepts in the script.
-
-    Returns a list of image prompt objects.
     """
-    try:
-        logger.info(f"Creating image prompts from script content")
+    logger.info("Creating image prompts from script content")
+    prompts_response = await create_image_prompts(request)
+    logger.info(f"Successfully generated {len(prompts_response.prompts)} image prompts")
+    return prompts_response
 
-        # Call the image prompts creation service
-        prompts_response = await create_image_prompts(request)
 
-        logger.info(
-            f"Successfully generated {len(prompts_response.prompts)} image prompts"
-        )
-        return prompts_response
+@router.post("/script/create/dummy", response_model=CreateScriptResponse)
+async def create_dummy_script(request: CreateScriptRequest):
+    """
+    Dummy endpoint for testing script creation.
+    """
+    return DUMMY_SCRIPT_RESPONSE
 
-    except Exception as e:
-        logger.error(f"Image prompts generation failed: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to generate image prompts: {str(e)}"
-        )
+
+@router.post("/create-image-prompts/dummy", response_model=CreateImagePromptsResponse)
+async def generate_dummy_image_prompts(request: CreateImagePromptsRequest):
+    """
+    Dummy endpoint for testing image prompt generation.
+    """
+    return DUMMY_IMAGE_PROMPTS_RESPONSE
