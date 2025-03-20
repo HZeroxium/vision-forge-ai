@@ -28,7 +28,7 @@ MIME_TYPES = {
 }
 
 
-def upload_to_do_spaces(
+async def upload_to_do_spaces(
     file_path: str,
     object_name: str = None,
     file_type: str = None,

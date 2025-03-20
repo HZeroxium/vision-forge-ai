@@ -59,6 +59,7 @@ class CreateAudioRequest(BaseModel):
 
 class CreateAudioResponse(BaseModel):
     audio_url: str
+    audio_duration: int
 
 
 class CreateVideoRequest(BaseModel):

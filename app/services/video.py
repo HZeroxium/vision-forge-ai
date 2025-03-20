@@ -299,7 +299,7 @@ async def create_simple_slideshow(request, image_duration=10) -> str:
         logger.info(f"Video created successfully: {video_path}")
 
         # Upload video
-        video_url = upload_to_do_spaces(
+        video_url = await upload_to_do_spaces(
             file_path=video_path,
             object_name=video_filename,
             file_type="videos",

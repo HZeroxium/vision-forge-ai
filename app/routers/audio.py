@@ -18,9 +18,9 @@ async def synthesize_speech_openai(request: CreateAudioRequest):
     Endpoint to convert script text into spoken audio using OpenAI TTS.
     """
     logger.info(f"Creating audio for script of length: {len(request.script)}")
-    audio_url = create_audio_from_script_openai(request.script)
+    audio_url, audio_duration = await create_audio_from_script_openai(request.script)
     logger.info(f"Audio generation successful, URL: {audio_url}")
-    return CreateAudioResponse(audio_url=audio_url)
+    return CreateAudioResponse(audio_url=audio_url, audio_duration=audio_duration)
 
 
 @router.post("/tts/google", response_model=CreateAudioResponse)

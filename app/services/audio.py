@@ -10,6 +10,7 @@ from pathlib import Path
 from fastapi import HTTPException
 from gtts import gTTS
 from app.utils.upload import upload_to_do_spaces
+from app.services.video import get_audio_duration
 
 logger = get_logger(__name__)
 
@@ -19,7 +20,7 @@ AUDIO_DIR = os.path.join(settings.OUTPUT_DIR, "audio")
 os.makedirs(AUDIO_DIR, exist_ok=True)
 
 
-def create_audio_from_script_openai(script: str, voice: str = "alloy") -> str:
+async def create_audio_from_script_openai(script: str, voice: str = "alloy") -> str:
     """
     Generate audio from script text using OpenAI's TTS API.
 
@@ -45,14 +46,22 @@ def create_audio_from_script_openai(script: str, voice: str = "alloy") -> str:
         logger.info(f"Audio file generated locally: {filepath}")
 
         # Upload the file to DigitalOcean Spaces
-        public_url = upload_to_do_spaces(filepath, filename)
+        public_url = await upload_to_do_spaces(filepath, filename)
+
+        # Get the audio duration
+        audio_duration = await get_audio_duration(filepath)
+
+        # Cast audio duration to int
+        audio_duration = int(audio_duration)
+
+        logger.info(f"Audio duration: {audio_duration} seconds")
 
         logger.info(f"Audio uploaded to: {public_url}")
 
         # Optionally remove the local file after upload
         # os.remove(filepath)
 
-        return public_url
+        return public_url, audio_duration
 
     except Exception as e:
         logger.error(f"Audio generation failed: {str(e)}")

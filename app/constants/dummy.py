@@ -43,5 +43,6 @@ DUMMY_IMAGE_RESPONSE = CreateImageResponse(
     image_url="https://fastly.picsum.photos/id/364/536/354.jpg?hmac=3O0ojRh7NNfYP6PiPhbnupymAgRh1IUj7FK5zAOtrws"
 )
 DUMMY_AUDIO_RESPONSE = CreateAudioResponse(
-    audio_url="https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Kangaroo_MusiQue_-_The_Neverwritten_Role_Playing_Game.mp3"
+    audio_url="https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Kangaroo_MusiQue_-_The_Neverwritten_Role_Playing_Game.mp3",
+    audio_duration=300,
 )
