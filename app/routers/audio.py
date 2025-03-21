@@ -1,12 +1,11 @@
 # app/routers/audio.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from app.models.schemas import CreateAudioRequest, CreateAudioResponse
 from app.services.audio import (
     create_audio_from_script_openai,
     create_audio_from_script_google,
 )
 from app.utils.logger import get_logger
-from app.constants.dummy import DUMMY_AUDIO_RESPONSE
 
 router = APIRouter()
 logger = get_logger(__name__)

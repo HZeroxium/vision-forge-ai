@@ -1,9 +1,8 @@
 # app/routers/image.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from app.models.schemas import CreateImageRequest, CreateImageResponse
-from app.services.image import generate_image_from_prompt, create_image_prompt
+from app.services.image import generate_image_from_prompt
 from app.utils.logger import get_logger
-from app.constants.dummy import DUMMY_IMAGE_RESPONSE
 
 router = APIRouter()
 logger = get_logger(__name__)
