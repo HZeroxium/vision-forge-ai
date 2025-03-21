@@ -10,9 +10,15 @@ from pathlib import Path
 from fastapi import HTTPException
 from gtts import gTTS
 from app.utils.upload import upload_to_do_spaces
-from app.services.video import get_audio_duration
+from mutagen.mp3 import MP3
 
 logger = get_logger(__name__)
+
+
+def get_audio_duration(audio_path: str) -> float:
+    """Get the duration of an audio file in seconds."""
+    audio = MP3(audio_path)
+    return audio.info.length  # Convert milliseconds to seconds
 
 
 # Create audio output directory if it doesn't exist
@@ -46,13 +52,10 @@ async def create_audio_from_script_openai(script: str, voice: str = "alloy") -> 
         logger.info(f"Audio file generated locally: {filepath}")
 
         # Upload the file to DigitalOcean Spaces
-        public_url = await upload_to_do_spaces(filepath, filename)
+        public_url = upload_to_do_spaces(filepath, filename)
 
         # Get the audio duration
-        audio_duration = await get_audio_duration(filepath)
-
-        # Cast audio duration to int
-        audio_duration = int(audio_duration)
+        audio_duration = int(get_audio_duration(filepath))
 
         logger.info(f"Audio duration: {audio_duration} seconds")
 

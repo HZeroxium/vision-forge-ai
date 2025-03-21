@@ -6,10 +6,10 @@ import asyncio
 import httpx
 import random
 import logging
-from mutagen.mp3 import MP3
 from app.core.config import settings
 from app.models.schemas import CreateVideoRequest
 from app.utils.upload import upload_to_do_spaces
+from app.services.audio import get_audio_duration
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +29,6 @@ async def download_file(url: str, output_path: str) -> None:
         with open(output_path, "wb") as f:
             f.write(response.content)
     logger.info(f"Downloaded file from {url} to {output_path}")
-
-
-async def get_audio_duration(audio_path: str) -> float:
-    """Get the duration of an audio file in seconds."""
-    audio = MP3(audio_path)
-    return audio.info.length  # Convert milliseconds to seconds
 
 
 async def create_video_from_images_and_audio(request: CreateVideoRequest) -> str:

@@ -24,7 +24,7 @@ async def synthesize_speech_openai(request: CreateAudioRequest):
 
 
 @router.post("/tts/google", response_model=CreateAudioResponse)
-async def synthesize_speech_google(request: CreateAudioRequest):
+def synthesize_speech_google(request: CreateAudioRequest):
     """
     Endpoint to convert script text into spoken audio using Google TTS.
     """
