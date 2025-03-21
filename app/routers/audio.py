@@ -50,9 +50,21 @@ async def list_available_voices():
     return {"voices": voices}
 
 
-@router.post("/tts/dummy", response_model=CreateAudioResponse)
+@router.post("/tts/openai/dummy", response_model=CreateAudioResponse)
 async def generate_dummy_audio(request: CreateAudioRequest):
     """
     Dummy endpoint for testing audio generation.
     """
-    return DUMMY_AUDIO_RESPONSE
+    from app.constants.dummy import get_dummy_audio_response
+
+    return get_dummy_audio_response()
+
+
+@router.post("/tts/google/dummy", response_model=CreateAudioResponse)
+async def generate_dummy_audio(request: CreateAudioRequest):
+    """
+    Dummy endpoint for testing audio generation.
+    """
+    from app.constants.dummy import get_dummy_audio_response
+
+    return get_dummy_audio_response()

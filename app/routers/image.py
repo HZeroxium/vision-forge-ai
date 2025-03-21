@@ -25,4 +25,6 @@ async def generate_dummy_image(request: CreateImageRequest):
     """
     Dummy endpoint for testing image generation.
     """
-    return DUMMY_IMAGE_RESPONSE
+    from app.constants.dummy import get_dummy_image_response
+
+    return get_dummy_image_response()

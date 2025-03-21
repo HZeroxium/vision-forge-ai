@@ -58,7 +58,7 @@ async def create_video_from_images_and_audio(request: CreateVideoRequest) -> str
             await download_file(request.audio_url, audio_path)
 
             # Get audio duration
-            audio_duration = await get_audio_duration(audio_path)
+            audio_duration = get_audio_duration(audio_path)
             logger.info(f"Audio duration: {audio_duration} seconds")
 
             # Create a unique filename for the output video
@@ -218,7 +218,7 @@ async def create_simple_slideshow(request, image_duration=10) -> str:
         audio_path = os.path.abspath(audio_path)  # Ensure absolute path
 
         # Get the audio duration
-        audio_duration = await get_audio_duration(audio_path)
+        audio_duration = get_audio_duration(audio_path)
         logger.info(f"Audio duration: {audio_duration} seconds")
 
         # Calculate required number of images
@@ -293,7 +293,7 @@ async def create_simple_slideshow(request, image_duration=10) -> str:
         logger.info(f"Video created successfully: {video_path}")
 
         # Upload video
-        video_url = await upload_to_do_spaces(
+        video_url = upload_to_do_spaces(
             file_path=video_path,
             object_name=video_filename,
             file_type="videos",

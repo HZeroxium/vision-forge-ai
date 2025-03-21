@@ -7,6 +7,8 @@ from app.models.schemas import (
     CreateAudioResponse,
 )
 
+import random
+
 DUMMY_SCRIPT_RESPONSE = CreateScriptResponse(
     content="Quá trình sinh trưởng của thực vật là một chủ đề thú vị và đầy màu sắc trong thế giới tự nhiên. Khi nhìn ra ngoài, chúng ta thường thấy cây cối vươn mình, nở hoa và ra trái. Nhưng điều gì thực sự diễn ra bên trong những sinh vật này? Hãy cùng khám phá.\n\nSinh trưởng của thực vật bắt đầu từ hạt giống. Một hạt giống chứa tất cả các thông tin di truyền cần thiết để phát triển thành một cây hoàn chỉnh. Khi hạt giống gặp môi trường thuận lợi, như độ ẩm và nhiệt độ thích hợp, nó bắt đầu nảy mầm. Quá trình này giống như một phép màu, khi hạt giống hấp thụ nước và dinh dưỡng từ đất, kích thích sự phát triển của rễ và mầm cây.\n\nRễ cây là bộ phận quan trọng đầu tiên phát triển. Chúng không chỉ giúp cây bám chặt vào mặt đất mà còn hấp thụ nước và khoáng chất cần thiết cho sự phát triển. Khi rễ mạnh mẽ, mầm cây bắt đầu vươn lên, tìm kiếm ánh sáng mặt trời. Ánh sáng là nguồn năng lượng chính cho thực vật, giúp chúng thực hiện quá trình quang hợp.\n\nQuang hợp là một quá trình kỳ diệu, mà qua đó cây cối chuyển đổi ánh sáng mặt trời thành năng lượng. Trong quá trình này, cây hấp thụ carbon dioxide từ không khí và nước từ đất, sau đó sản xuất ra glucose và oxy. Glucose là nguồn năng lượng mà cây sử dụng để phát triển, trong khi oxy được thải ra, cung cấp cho chúng ta không khí trong lành.\n\nKhi cây trưởng thành, nó sẽ trải qua nhiều giai đoạn sinh trưởng khác nhau. Cây sẽ phát triển thêm thân, lá và hoa. Mỗi bộ phận này đóng một vai trò quan trọng trong quá trình sinh trưởng và sinh sản. Thân cây không chỉ hỗ trợ cấu trúc mà còn vận chuyển nước và chất dinh dưỡng giữa các bộ phận. Lá cây, với bề mặt rộng và xanh tươi, là nơi diễn ra quang hợp, cung cấp năng lượng cho toàn bộ cây.\n\nKhi đến giai đoạn trưởng thành, cây sẽ bắt đầu ra hoa. Hoa không chỉ đẹp mắt mà còn là phần quan trọng trong quá trình sinh sản. Chúng thu hút côn trùng thụ phấn, giúp cho quá trình thụ tinh diễn ra. Sau khi thụ tinh, hoa sẽ phát triển thành trái, bên trong chứa hạt giống cho thế hệ cây kế tiếp.\n\nQuá trình sinh trưởng của thực vật không chỉ đơn thuần là sự phát triển của cây mà còn là một chu trình liên kết với môi trường xung quanh. Thực vật tương tác với đất, nước, ánh sáng và khí hậu, tạo thành một hệ sinh thái phong phú. Sự sinh trưởng của thực vật đóng vai trò quan trọng trong việc duy trì sự cân bằng sinh thái, cung cấp thực phẩm, nơi sống và oxy cho các sinh vật khác.\n\nTóm lại, quá trình sinh trưởng của thực vật bắt đầu từ hạt giống và trải qua nhiều giai đoạn khác nhau, từ nảy mầm, phát triển rễ và mầm, đến trưởng thành và ra hoa. Mỗi giai đoạn đều có những chức năng và vai trò quan trọng, không chỉ cho bản thân cây mà còn cho toàn bộ hệ sinh thái. Qua đó, chúng ta thấy được vẻ đẹp và sự kỳ diệu của thế giới thực vật xung quanh mình."
 )
@@ -39,10 +41,52 @@ DUMMY_IMAGE_PROMPTS_RESPONSE = CreateImagePromptsResponse(
     ],
     style="Phổ thông",
 )
-DUMMY_IMAGE_RESPONSE = CreateImageResponse(
-    image_url="https://fastly.picsum.photos/id/364/536/354.jpg?hmac=3O0ojRh7NNfYP6PiPhbnupymAgRh1IUj7FK5zAOtrws"
-)
-DUMMY_AUDIO_RESPONSE = CreateAudioResponse(
-    audio_url="https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Kangaroo_MusiQue_-_The_Neverwritten_Role_Playing_Game.mp3",
-    audio_duration=300,
-)
+
+IMAGE_URLS = [
+    "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/images/8719e8b6-132a-4c01-bfc3-d6db3272f76e.jpg",
+    "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/images/e9617969-e466-48dd-9cf4-4b097d2a82f4.jpg",
+    "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/images/ec56beb2-fc57-47c6-8d15-7cb9f9cd358e.jpg",
+]
+
+AUDIO_URLS = [
+    "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/audio/ffbca4e3617249949181fd96eb5c6a02.mp3",
+    "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/audio/fd256acf98fd4c6881bf993e73e08a0e.mp3",
+]
+
+
+# Cycling randomizer to avoid repetition
+class CyclicRandomizer:
+    def __init__(self, items):
+        self.items = list(items)
+        self.current_items = []
+        self._shuffle_items()
+
+    def _shuffle_items(self):
+        self.current_items = list(self.items)
+        random.shuffle(self.current_items)
+
+    def get_next(self):
+        if not self.current_items:
+            self._shuffle_items()
+        return self.current_items.pop()
+
+
+# Initialize randomizers
+_image_randomizer = CyclicRandomizer(IMAGE_URLS)
+_audio_randomizer = CyclicRandomizer(AUDIO_URLS)
+
+
+# Get random image response and audio response with cycling
+def get_dummy_image_response():
+    return CreateImageResponse(image_url=_image_randomizer.get_next())
+
+
+def get_dummy_audio_response():
+    return CreateAudioResponse(
+        audio_url=_audio_randomizer.get_next(), audio_duration=300
+    )
+
+
+# Static instances for backward compatibility
+DUMMY_IMAGE_RESPONSE = get_dummy_image_response()
+DUMMY_AUDIO_RESPONSE = get_dummy_audio_response()
