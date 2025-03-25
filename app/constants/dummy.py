@@ -43,9 +43,14 @@ DUMMY_IMAGE_PROMPTS_RESPONSE = CreateImagePromptsResponse(
 )
 
 IMAGE_URLS = [
-    "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/images/8719e8b6-132a-4c01-bfc3-d6db3272f76e.jpg",
-    "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/images/e9617969-e466-48dd-9cf4-4b097d2a82f4.jpg",
-    "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/images/ec56beb2-fc57-47c6-8d15-7cb9f9cd358e.jpg",
+    "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/images/DALL%C2%B7E%202025-03-23%2016.52.32%20-%20A%20close-up%20view%20of%20a%20seed%20undergoing%20germination%20in%20dark,%20moist%20soil.%20Delicate%20white%20roots%20are%20sprouting%20downward,%20and%20a%20tiny%20green%20shoot%20is%20breaking%20.webp",
+    "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/images/DALL%C2%B7E%202025-03-23%2016.52.40%20-%20Root%20System%20Development_%20A%20cross-section%20of%20soil%20revealing%20a%20young%20plant%20with%20an%20intricate%20network%20of%20roots%20spreading%20out%20in%20different%20directions.%20The.webp",
+    "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/images/DALL%C2%B7E%202025-03-23%2016.52.49%20-%20Photosynthesis%20Process_%20A%20vibrant,%20wide%20shot%20of%20a%20mature%20plant%20with%20large%20green%20leaves%20absorbing%20sunlight.%20Sunlight%20streams%20down%20clearly%20onto%20the%20plan.webp",
+    "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/images/DALL%C2%B7E%202025-03-23%2016.52.53%20-%20Plant%20Growth%20Stages_%20A%20horizontal%20series%20of%20four%20connected%20panels%20showing%20the%20stages%20of%20plant%20growth.%20First%20panel_%20a%20seed%20in%20the%20soil.%20Second%20panel_%20a.webp",
+    "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/images/DALL%C2%B7E%202025-03-23%2016.53.00%20-%20Flowering%20Process_%20A%20close-up%20of%20a%20colorful%20flower%20blooming%20on%20a%20mature%20plant.%20The%20petals%20are%20vibrant%20and%20detailed,%20with%20visible%20reproductive%20parts%20in.webp",
+    "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/images/DALL%C2%B7E%202025-03-23%2016.53.09%20-%20Fruiting%20and%20Seed%20Dispersal_%20A%20dynamic%20scene%20of%20a%20ripe%20fruit%20hanging%20from%20a%20tree%20branch,%20with%20part%20of%20the%20fruit%20cut%20open%20to%20clearly%20show%20the%20seeds%20ins.webp",
+    "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/images/DALL%C2%B7E%202025-03-23%2016.53.27%20-%20Ecosystem%20Interaction_%20A%20wide,%20vibrant%20landscape%20showing%20diverse%20plant%20species%20in%20different%20growth%20stages%20%E2%80%94%20some%20flowering,%20some%20bearing%20fruit.%20Insect.webp",
+    "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/images/DALL%C2%B7E%202025-03-23%2016.53.31%20-%20Ecological%20Balance_%20An%20overview%20illustration%20of%20a%20thriving%20ecosystem%20with%20plants,%20animals,%20and%20natural%20elements%20like%20water%20and%20sunlight.%20Plants%20are%20sh.webp",
 ]
 
 AUDIO_URLS = [
