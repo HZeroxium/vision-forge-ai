@@ -5,6 +5,7 @@ from app.models.schemas import (
     CreateImagePromptsResponse,
     CreateImageResponse,
     CreateAudioResponse,
+    ImagePromptDetail,
 )
 
 import random
@@ -12,32 +13,41 @@ import random
 DUMMY_SCRIPT_RESPONSE = CreateScriptResponse(
     content="Quá trình sinh trưởng của thực vật là một chủ đề thú vị và đầy màu sắc trong thế giới tự nhiên. Khi nhìn ra ngoài, chúng ta thường thấy cây cối vươn mình, nở hoa và ra trái. Nhưng điều gì thực sự diễn ra bên trong những sinh vật này? Hãy cùng khám phá.\n\nSinh trưởng của thực vật bắt đầu từ hạt giống. Một hạt giống chứa tất cả các thông tin di truyền cần thiết để phát triển thành một cây hoàn chỉnh. Khi hạt giống gặp môi trường thuận lợi, như độ ẩm và nhiệt độ thích hợp, nó bắt đầu nảy mầm. Quá trình này giống như một phép màu, khi hạt giống hấp thụ nước và dinh dưỡng từ đất, kích thích sự phát triển của rễ và mầm cây.\n\nRễ cây là bộ phận quan trọng đầu tiên phát triển. Chúng không chỉ giúp cây bám chặt vào mặt đất mà còn hấp thụ nước và khoáng chất cần thiết cho sự phát triển. Khi rễ mạnh mẽ, mầm cây bắt đầu vươn lên, tìm kiếm ánh sáng mặt trời. Ánh sáng là nguồn năng lượng chính cho thực vật, giúp chúng thực hiện quá trình quang hợp.\n\nQuang hợp là một quá trình kỳ diệu, mà qua đó cây cối chuyển đổi ánh sáng mặt trời thành năng lượng. Trong quá trình này, cây hấp thụ carbon dioxide từ không khí và nước từ đất, sau đó sản xuất ra glucose và oxy. Glucose là nguồn năng lượng mà cây sử dụng để phát triển, trong khi oxy được thải ra, cung cấp cho chúng ta không khí trong lành.\n\nKhi cây trưởng thành, nó sẽ trải qua nhiều giai đoạn sinh trưởng khác nhau. Cây sẽ phát triển thêm thân, lá và hoa. Mỗi bộ phận này đóng một vai trò quan trọng trong quá trình sinh trưởng và sinh sản. Thân cây không chỉ hỗ trợ cấu trúc mà còn vận chuyển nước và chất dinh dưỡng giữa các bộ phận. Lá cây, với bề mặt rộng và xanh tươi, là nơi diễn ra quang hợp, cung cấp năng lượng cho toàn bộ cây.\n\nKhi đến giai đoạn trưởng thành, cây sẽ bắt đầu ra hoa. Hoa không chỉ đẹp mắt mà còn là phần quan trọng trong quá trình sinh sản. Chúng thu hút côn trùng thụ phấn, giúp cho quá trình thụ tinh diễn ra. Sau khi thụ tinh, hoa sẽ phát triển thành trái, bên trong chứa hạt giống cho thế hệ cây kế tiếp.\n\nQuá trình sinh trưởng của thực vật không chỉ đơn thuần là sự phát triển của cây mà còn là một chu trình liên kết với môi trường xung quanh. Thực vật tương tác với đất, nước, ánh sáng và khí hậu, tạo thành một hệ sinh thái phong phú. Sự sinh trưởng của thực vật đóng vai trò quan trọng trong việc duy trì sự cân bằng sinh thái, cung cấp thực phẩm, nơi sống và oxy cho các sinh vật khác.\n\nTóm lại, quá trình sinh trưởng của thực vật bắt đầu từ hạt giống và trải qua nhiều giai đoạn khác nhau, từ nảy mầm, phát triển rễ và mầm, đến trưởng thành và ra hoa. Mỗi giai đoạn đều có những chức năng và vai trò quan trọng, không chỉ cho bản thân cây mà còn cho toàn bộ hệ sinh thái. Qua đó, chúng ta thấy được vẻ đẹp và sự kỳ diệu của thế giới thực vật xung quanh mình."
 )
+
 DUMMY_IMAGE_PROMPTS_RESPONSE = CreateImagePromptsResponse(
     prompts=[
-        {
-            "prompt": "**Seed Germination**: A close-up view of a seed nestled in dark, moist soil, with delicate white roots beginning to sprout downward and a tiny green shoot breaking through the soil surface. The scene is illuminated by soft sunlight filtering through leaves above, highlighting the textures of the soil and the seed."
-        },
-        {
-            "prompt": "**Root System Development**: A cross-section of soil revealing a young plant with an intricate network of roots spreading out in different directions. The roots are shown absorbing water and nutrients from the surrounding soil, with tiny soil particles clinging to them. The background features layers of soil with varying textures to emphasize the underground ecosystem."
-        },
-        {
-            "prompt": "**Photosynthesis Process**: A vibrant, wide shot of a mature plant with large green leaves absorbing sunlight, showing the sunlight streaming down. The leaves are dotted with small openings (stomata) that are actively taking in carbon dioxide from the air, while roots are absorbing water from the soil below. Bubbles of oxygen are depicted emerging from the leaves, symbolizing the oxygen produced during photosynthesis."
-        },
-        {
-            "prompt": "**Plant Growth Stages**: A series of four panels showing the different stages of plant growth: the first panel with a seed, the second showing a sprouted seedling, the third displaying a small plant with leaves, and the final panel featuring a fully mature plant with flowers. Each panel should be connected by a continuous line or gradient background to represent the progression of growth."
-        },
-        {
-            "prompt": "**Flowering Process**: A close-up of a colorful flower blooming on a mature plant, with intricate details of the petals and reproductive parts (stamens and pistils) clearly visible. Surrounding the flower are buzzing bees and butterflies, illustrating the interaction with pollinators that play a crucial role in the reproduction of the plant."
-        },
-        {
-            "prompt": "**Fruiting and Seed Dispersal**: A dynamic scene showing a ripe fruit hanging from a branch, with sections cut open to reveal the seeds inside. Some seeds are being carried away by the wind or small animals, illustrating the dispersal mechanism. The background includes lush greenery and hints of other plants, emphasizing the biodiversity of the ecosystem."
-        },
-        {
-            "prompt": "**Ecosystem Interaction**: A wide shot depicting a diverse landscape with various plant species, insects, and animals coexisting. The plants are shown in different growth stages, with some flowering and others bearing fruit, while various fauna interact with them. The scene should capture the interconnectedness of plants with their environment, showcasing how they contribute to the ecosystem."
-        },
-        {
-            "prompt": "**Ecological Balance**: An overview illustration showing a thriving ecosystem composed of plants, animals, and natural elements like water and sunlight. This scene should depict a balance where plants provide oxygen and food, while animals contribute to pollination and seed dispersal. The backdrop includes a clear sky and a vibrant landscape, symbolizing the harmony of nature."
-        },
+        ImagePromptDetail(
+            prompt="A vibrant outdoor scene depicting various plants and trees, with a focus on their growth processes. Some trees are tall and blooming, while others are budding with flowers and fruits. The background showcases a sunny day with a clear blue sky, and a variety of colors representing different plants in full bloom. ",
+            script="Quá trình sinh trưởng của thực vật là một chủ đề thú vị và đầy màu sắc trong thế giới tự nhiên. Khi nhìn ra ngoài, chúng ta thường thấy cây cối vươn mình, nở hoa và ra trái. Nhưng điều gì thực sự diễn ra bên trong những sinh vật này? Hãy cùng khám phá.",
+        ),
+        ImagePromptDetail(
+            prompt="A close-up view of a seed nestled in dark, rich soil. The seed is beginning to germinate, with tiny white roots emerging downwards and a small green shoot pushing upwards. Surrounding the seed are droplets of water and tiny particles of nutrients, illustrating the favorable conditions for germination.",
+            script="Sinh trưởng của thực vật bắt đầu từ hạt giống. Một hạt giống chứa tất cả các thông tin di truyền cần thiết để phát triển thành một cây hoàn chỉnh. Khi hạt giống gặp môi trường thuận lợi, như độ ẩm và nhiệt độ thích hợp, nó bắt đầu nảy mầm. Quá trình này giống như một phép màu, khi hạt giống hấp thụ nước và dinh dưỡng từ đất, kích thích sự phát triển của rễ và mầm cây.",
+        ),
+        ImagePromptDetail(
+            prompt="A cross-section illustration of a young plant showing its developing root system. The roots are spread out in the soil, anchoring the plant and absorbing water and minerals. Above the soil, a small green sprout is reaching for sunlight, indicating the plant's growth towards energy.",
+            script="Rễ cây là bộ phận quan trọng đầu tiên phát triển. Chúng không chỉ giúp cây bám chặt vào mặt đất mà còn hấp thụ nước và khoáng chất cần thiết cho sự phát triển. Khi rễ mạnh mẽ, mầm cây bắt đầu vươn lên, tìm kiếm ánh sáng mặt trời. Ánh sáng là nguồn năng lượng chính cho thực vật, giúp chúng thực hiện quá trình quang hợp.",
+        ),
+        ImagePromptDetail(
+            prompt="An illustration of photosynthesis in action: a vibrant green leaf with sunlight streaming down on it. The leaf is depicted with small bubbles representing oxygen being released and arrows indicating the intake of carbon dioxide and water. Glucose molecules are also shown being formed within the leaf.",
+            script="Quang hợp là một quá trình kỳ diệu, mà qua đó cây cối chuyển đổi ánh sáng mặt trời thành năng lượng. Trong quá trình này, cây hấp thụ carbon dioxide từ không khí và nước từ đất, sau đó sản xuất ra glucose và oxy. Glucose là nguồn năng lượng mà cây sử dụng để phát triển, trong khi oxy được thải ra, cung cấp cho chúng ta không khí trong lành.",
+        ),
+        ImagePromptDetail(
+            prompt="A wide shot of a mature plant with a strong trunk, lush green leaves, and blooming flowers. The trunk is sturdy, with leaves catching sunlight, and flowers attracting various pollinators like bees and butterflies. The scene conveys the plant's role in the ecosystem.",
+            script="Khi cây trưởng thành, nó sẽ trải qua nhiều giai đoạn sinh trưởng khác nhau. Cây sẽ phát triển thêm thân, lá và hoa. Mỗi bộ phận này đóng một vai trò quan trọng trong quá trình sinh trưởng và sinh sản. Thân cây không chỉ hỗ trợ cấu trúc mà còn vận chuyển nước và chất dinh dưỡng giữa các bộ phận. Lá cây, với bề mặt rộng và xanh tươi, là nơi diễn ra quang hợp, cung cấp năng lượng cho toàn bộ cây.",
+        ),
+        ImagePromptDetail(
+            prompt="An artistic depiction of flowering plants in a garden, with a variety of colorful flowers in full bloom. The flowers are attracting insects like bees, which are shown pollinating them. This scene emphasizes the importance of flowers in reproduction and biodiversity.",
+            script="Khi đến giai đoạn trưởng thành, cây sẽ bắt đầu ra hoa. Hoa không chỉ đẹp mắt mà còn là phần quan trọng trong quá trình sinh sản. Chúng thu hút côn trùng thụ phấn, giúp cho quá trình thụ tinh diễn ra. Sau khi thụ tinh, hoa sẽ phát triển thành trái, bên trong chứa hạt giống cho thế hệ cây kế tiếp.",
+        ),
+        ImagePromptDetail(
+            prompt="An expansive view of a thriving ecosystem with various plants, trees, and wildlife. The image shows how plants interact with their environment, including soil, water sources, and sunlight. A diverse range of species can be seen, illustrating the richness of the ecosystem.",
+            script="Quá trình sinh trưởng của thực vật không chỉ đơn thuần là sự phát triển của cây mà còn là một chu trình liên kết với môi trường xung quanh. Thực vật tương tác với đất, nước, ánh sáng và khí hậu, tạo thành một hệ sinh thái phong phú. Sự sinh trưởng của thực vật đóng vai trò quan trọng trong việc duy trì sự cân bằng sinh thái, cung cấp thực phẩm, nơi sống và oxy cho các sinh vật khác.",
+        ),
+        ImagePromptDetail(
+            prompt="A concluding scene summarizing plant growth stages, featuring a timeline-like visual with images of a seed, germination, root development, photosynthesis, flowering, and fruiting. Each stage is labeled and visually distinct, emphasizing the interconnectedness of each phase in the life of a plant.",
+            script="Tóm lại, quá trình sinh trưởng của thực vật bắt đầu từ hạt giống và trải qua nhiều giai đoạn khác nhau, từ nảy mầm, phát triển rễ và mầm, đến trưởng thành và ra hoa. Mỗi giai đoạn đều có những chức năng và vai trò quan trọng, không chỉ cho bản thân cây mà còn cho toàn bộ hệ sinh thái. Qua đó, chúng ta thấy được vẻ đẹp và sự kỳ diệu của thế giới thực vật xung quanh mình.",
+        ),
     ],
     style="Phổ thông",
 )

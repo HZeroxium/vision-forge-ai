@@ -6,8 +6,8 @@ from langchain_core.output_parsers import StrOutputParser
 from app.models.schemas import (
     CreateScriptRequest,
     CreateScriptResponse,
-    CreateImagePromptsRequest,
     CreateImagePromptsResponse,
+    ImagePromptsOutput,
 )
 from app.core.config import settings
 from app.constants.prompts import (
@@ -92,26 +92,41 @@ async def create_script(request: CreateScriptRequest) -> CreateScriptResponse:
     return CreateScriptResponse(content=response)
 
 
-async def create_image_prompts(
-    request: CreateImagePromptsRequest,
-) -> CreateImagePromptsResponse:
+async def create_image_prompts(content: str, style: str) -> CreateImagePromptsResponse:
     """
-    Generate a list of image prompts based on the content of a script.
+    Generate a list of image prompts with associated script.
+    Each element will be a dict with keys:
+    - prompt: The prompt used to generate the image.
+    - script: The text script describing the motion (narration) content.
     """
     chat_model = ChatOpenAI(
         model=settings.OPENAI_MODEL_NAME,
         temperature=0.7,  # For creative image prompts
     )
+    # Create structured LLM using our ImagePromptsOutput model
+    structured_llm = chat_model.with_structured_output(ImagePromptsOutput)
+
+    # Append instruction to the human prompt regarding the structured output
+    human_prompt = CREATE_IMAGE_PROMPTS_HUMAN_PROMPT + (
+        "\nAdditionally, for each image prompt, return a JSON object with two keys: "
+        "'prompt' (the prompt for image generation) and 'script' (the detailed script describing the motion or narrative content)."
+    )
 
     prompt_template = ChatPromptTemplate.from_messages(
         [
             ("system", CREATE_IMAGE_PROMPTS_SYSTEM_PROMPT),
-            ("human", CREATE_IMAGE_PROMPTS_HUMAN_PROMPT),
+            ("human", human_prompt),
         ]
     )
-    chain = prompt_template | chat_model | StrOutputParser()
-    response = chain.invoke({"content": request.content, "style": request.style})
-    prompt_texts = extract_prompts_from_text(response)
-    prompt_list = [{"prompt": text.strip()} for text in prompt_texts if text.strip()]
-    logger.info(f"Successfully created {len(prompt_list)} image prompts")
-    return CreateImagePromptsResponse(prompts=prompt_list, style=request.style)
+    # Create a chain using the structured LLM
+    chain = prompt_template | structured_llm
+    result: ImagePromptsOutput = chain.invoke({"content": content, "style": style})
+
+    # Chuyển đổi các đối tượng ImagePromptDetail thành dictionaries
+    prompts_dict_list = [prompt.model_dump() for prompt in result.prompts]
+
+    # result is an instance of ImagePromptsOutput
+    logger.info(
+        f"Successfully created {len(prompts_dict_list)} image prompts with motion scripts"
+    )
+    return CreateImagePromptsResponse(prompts=prompts_dict_list, style=style)

@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.models.schemas import CreateVideoRequest
 from app.utils.upload import upload_to_do_spaces
 from app.services.audio import get_audio_duration
+from app.services.motion import create_motion_video_from_image
 
 logger = logging.getLogger(__name__)
 
@@ -305,3 +306,176 @@ async def create_simple_slideshow(request, image_duration=10) -> str:
     except Exception as e:
         logger.error(f"Error creating slideshow: {str(e)}")
         raise Exception(f"Failed to create slideshow: {str(e)}")
+
+
+async def create_simple_video(request: CreateVideoRequest) -> str:
+    """
+    Creates a video by generating motion videos for each image, with durations
+    proportional to the length of the corresponding scripts, then combines them.
+
+    Args:
+        request: The video creation request containing image URLs, scripts, and audio URL.
+
+    Returns:
+        The URL of the generated video.
+    """
+    try:
+        # Validate input: number of images should match number of scripts
+        if request.scripts and len(request.image_urls) != len(request.scripts):
+            raise ValueError("The number of images must match the number of scripts")
+
+        temp_dir = os.path.join(TEMP_DIR, uuid.uuid4().hex)
+        os.makedirs(temp_dir, exist_ok=True)
+
+        # Download audio
+        audio_ext = os.path.splitext(request.audio_url)[1] or ".mp3"
+        audio_path = os.path.join(temp_dir, f"audio{audio_ext}")
+        await download_file(request.audio_url, audio_path)
+
+        # Get the audio duration
+        audio_duration = get_audio_duration(audio_path)
+        logger.info(f"Audio duration: {audio_duration} seconds")
+
+        # Calculate segment durations based on script lengths
+        if request.scripts:
+            # Calculate total characters across all scripts
+            total_chars = sum(len(script) for script in request.scripts)
+
+            # Calculate duration for each segment proportional to its script length
+            segment_durations = []
+            for script in request.scripts:
+                # Calculate proportion of total audio time for this segment
+                if total_chars > 0:
+                    proportion = len(script) / total_chars
+                    duration = audio_duration * proportion
+                else:
+                    # If no text, divide time equally
+                    duration = audio_duration / len(request.scripts)
+                segment_durations.append(duration)
+        else:
+            # Without scripts, divide time equally
+            segment_durations = [audio_duration / len(request.image_urls)] * len(
+                request.image_urls
+            )
+
+        # Generate motion videos for each image
+        motion_video_paths = []
+        for i, (image_url, duration) in enumerate(
+            zip(request.image_urls, segment_durations)
+        ):
+            logger.info(
+                f"Creating motion video {i+1}/{len(request.image_urls)} with duration {duration:.2f}s"
+            )
+            video_path = await create_motion_video_from_image(image_url, duration)
+            motion_video_paths.append(video_path)
+
+        # Combine motion videos
+        return await combine_videos_with_audio(motion_video_paths, audio_path)
+
+    except Exception as e:
+        logger.error(f"Error creating video: {str(e)}")
+        raise Exception(f"Failed to create video: {str(e)}")
+
+
+async def combine_videos_with_audio(video_paths: list, audio_path: str) -> str:
+    """
+    Combine multiple video clips into a single video and add audio track.
+
+    Args:
+        video_paths: List of paths to video clips.
+        audio_path: Path to the audio file.
+
+    Returns:
+        URL of the uploaded final video.
+    """
+    temp_dir = os.path.join(TEMP_DIR, uuid.uuid4().hex)
+    os.makedirs(temp_dir, exist_ok=True)
+
+    # Create a temporary file for the video list
+    concat_file = os.path.join(temp_dir, "concat_list.txt")
+    with open(concat_file, "w", encoding="utf-8") as f:
+        for video_path in video_paths:
+            f.write(f"file '{os.path.abspath(video_path)}'\n")
+
+    # First, concatenate the videos
+    combined_video_path = os.path.join(temp_dir, f"combined_{uuid.uuid4().hex}.mp4")
+    concat_cmd = [
+        settings.FFMPEG_PATH,
+        "-y",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        concat_file,
+        "-c",
+        "copy",
+        combined_video_path,
+    ]
+
+    logger.info(f"Concatenating videos: {' '.join(concat_cmd)}")
+    concat_process = await asyncio.create_subprocess_exec(
+        *concat_cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await concat_process.communicate()
+
+    if concat_process.returncode != 0:
+        error_msg = stderr.decode("utf-8")
+        logger.error(f"FFmpeg concat error: {error_msg}")
+        raise Exception(f"Failed to combine videos: {error_msg}")
+
+    # Now, add the audio to the combined video
+    final_video_id = uuid.uuid4().hex
+    final_video_filename = f"{final_video_id}.mp4"
+    final_video_path = os.path.join(VIDEOS_DIR, final_video_filename)
+
+    audio_cmd = [
+        settings.FFMPEG_PATH,
+        "-y",
+        "-i",
+        combined_video_path,
+        "-i",
+        audio_path,
+        "-c:v",
+        "copy",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        "-shortest",
+        final_video_path,
+    ]
+
+    logger.info(f"Adding audio to video: {' '.join(audio_cmd)}")
+    audio_process = await asyncio.create_subprocess_exec(
+        *audio_cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await audio_process.communicate()
+
+    if audio_process.returncode != 0:
+        error_msg = stderr.decode("utf-8")
+        logger.error(f"FFmpeg audio error: {error_msg}")
+        raise Exception(f"Failed to add audio to video: {error_msg}")
+
+    logger.info(f"Final video created: {final_video_path}")
+
+    # Upload video to storage
+    video_url = upload_to_do_spaces(
+        file_path=final_video_path,
+        object_name=final_video_filename,
+        file_type="videos",
+        content_type="video/mp4",
+    )
+
+    # Clean up temp files
+    try:
+        os.remove(combined_video_path)
+        os.remove(concat_file)
+    except:
+        pass
+
+    return video_url

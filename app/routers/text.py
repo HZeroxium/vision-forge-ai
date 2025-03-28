@@ -31,7 +31,9 @@ async def generate_image_prompts(request: CreateImagePromptsRequest):
     Endpoint to create a list of image prompts from script content.
     """
     logger.info("Creating image prompts from script content")
-    prompts_response = await create_image_prompts(request)
+    prompts_response = await create_image_prompts(
+        request.content, request.style or "realistic"
+    )
     logger.info(f"Successfully generated {len(prompts_response.prompts)} image prompts")
     return prompts_response
 

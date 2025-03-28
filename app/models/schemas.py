@@ -44,8 +44,20 @@ class CreateImagePromptsRequest(BaseModel):
     style: str = Field(..., description="Desired visual style for the image prompts")
 
 
+class ImagePromptDetail(BaseModel):
+    prompt: str = Field(..., description="Prompt used to generate the image")
+    script: str = Field(
+        ..., description="Script text describing the motion content for the image"
+    )
+    # Đã loại bỏ trường duration
+
+
+class ImagePromptsOutput(BaseModel):
+    prompts: List[ImagePromptDetail]
+
+
 class CreateImagePromptsResponse(BaseModel):
-    prompts: List[Dict[str, str]]
+    prompts: List[ImagePromptDetail]
     style: str
 
 
@@ -62,9 +74,24 @@ class CreateAudioResponse(BaseModel):
     audio_duration: int
 
 
+class CreateMotionVideoRequest(BaseModel):
+    image_url: str = Field(..., description="URL of the image to animate")
+    duration: Optional[float] = Field(
+        10.0, description="Duration of the motion video in seconds (default: 10.0)"
+    )
+
+
+class CreateMotionVideoResponse(BaseModel):
+    video_url: str
+
+
 class CreateVideoRequest(BaseModel):
     image_urls: List[str] = Field(
         ..., description="List of image URLs to include in the video"
+    )
+    scripts: Optional[List[str]] = Field(
+        None,
+        description="List of scripts corresponding to each image for determining segment durations",
     )
     audio_url: str = Field(..., description="URL of the audio track to use")
     title: Optional[str] = Field(None, description="Optional title for the video")
