@@ -1,29 +1,15 @@
 # app/services/audio.py
 
 from openai import OpenAI
-from app.models.schemas import CreateAudioRequest, CreateAudioResponse
 import uuid
 from app.utils.logger import get_logger
-from app.core.config import settings
 import os
-from pathlib import Path
 from fastapi import HTTPException
 from gtts import gTTS
 from app.utils.upload import upload_to_do_spaces
-from mutagen.mp3 import MP3
+from app.utils.media import AUDIO_DIR, get_audio_duration
 
 logger = get_logger(__name__)
-
-
-def get_audio_duration(audio_path: str) -> float:
-    """Get the duration of an audio file in seconds."""
-    audio = MP3(audio_path)
-    return audio.info.length  # Convert milliseconds to seconds
-
-
-# Create audio output directory if it doesn't exist
-AUDIO_DIR = os.path.join(settings.OUTPUT_DIR, "audio")
-os.makedirs(AUDIO_DIR, exist_ok=True)
 
 
 async def create_audio_from_script_openai(script: str, voice: str = "alloy") -> str:

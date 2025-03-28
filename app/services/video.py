@@ -1,9 +1,7 @@
 # app/services/video.py
 import os
 import uuid
-import tempfile
 import asyncio
-import httpx
 import random
 import logging
 from app.core.config import settings
@@ -11,187 +9,15 @@ from app.models.schemas import CreateVideoRequest
 from app.utils.upload import upload_to_do_spaces
 from app.services.audio import get_audio_duration
 from app.services.motion import create_motion_video_from_image
+from app.utils.media import (
+    download_file,
+    combine_videos_with_audio,
+    get_audio_duration,
+    HW_ACCEL,
+)
+from app.utils.media import TEMP_DIR
 
 logger = logging.getLogger(__name__)
-
-# Create videos output directory
-VIDEOS_DIR = os.path.join(settings.OUTPUT_DIR, "videos")
-os.makedirs(VIDEOS_DIR, exist_ok=True)
-
-TEMP_DIR = os.path.abspath(os.path.join(settings.OUTPUT_DIR, "temp"))
-os.makedirs(TEMP_DIR, exist_ok=True)
-
-
-async def download_file(url: str, output_path: str) -> None:
-    """Download a file from a URL asynchronously."""
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url)
-        response.raise_for_status()
-        with open(output_path, "wb") as f:
-            f.write(response.content)
-    logger.info(f"Downloaded file from {url} to {output_path}")
-
-
-async def create_video_from_images_and_audio(request: CreateVideoRequest) -> str:
-    """
-    Generate a video using FFmpeg by combining images with transitions and audio.
-
-    Args:
-        request: The video creation request containing image URLs, audio URL and options.
-
-    Returns:
-        The URL of the generated video.
-    """
-    try:
-        # Create a temporary directory for intermediate files
-        with tempfile.TemporaryDirectory(dir=TEMP_DIR) as temp_dir:
-            # Download images
-            image_paths = []
-            for i, url in enumerate(request.image_urls):
-                ext = os.path.splitext(url)[1] or ".jpg"
-                image_path = os.path.join(temp_dir, f"image_{i}{ext}")
-                await download_file(url, image_path)
-                image_paths.append(image_path)
-
-            # Download audio
-            audio_ext = os.path.splitext(request.audio_url)[1] or ".mp3"
-            audio_path = os.path.join(temp_dir, f"audio{audio_ext}")
-            await download_file(request.audio_url, audio_path)
-
-            # Get audio duration
-            audio_duration = get_audio_duration(audio_path)
-            logger.info(f"Audio duration: {audio_duration} seconds")
-
-            # Create a unique filename for the output video
-            video_id = uuid.uuid4().hex
-            video_filename = f"{video_id}.mp4"
-            video_path = os.path.join(VIDEOS_DIR, video_filename)
-
-            # Calculate how many images we need (10 seconds per image)
-            image_duration = 10.0  # seconds per image
-            transition_duration = request.transition_duration or 1.0
-
-            # Calculate total number of images needed to cover audio duration
-            required_images = int(audio_duration / image_duration) + 1
-
-            # If we don't have enough images, we'll need to repeat some
-            if required_images > len(image_paths):
-                # Create a list of images that will cover the entire audio duration
-                extended_image_paths = []
-
-                # First, add all original images
-                extended_image_paths.extend(image_paths)
-
-                # Then add random images from the original set until we have enough
-                remaining = required_images - len(image_paths)
-                while remaining > 0:
-                    # Randomly select images to repeat
-                    random_images = random.sample(
-                        image_paths, min(remaining, len(image_paths))
-                    )
-                    extended_image_paths.extend(random_images)
-                    remaining -= len(random_images)
-
-                image_paths = extended_image_paths
-
-            # Create a complex filter for transitions
-            filter_complex = []
-            overlay_chain = []
-
-            # Handle transitions between images
-            for i in range(len(image_paths)):
-                # Each image needs to be scaled to 1920x1080 and have a duration of image_duration
-                filter_complex.append(
-                    f"[0:{i}] scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p,trim=duration={image_duration}[v{i}];"
-                )
-
-                # Add to the overlay chain
-                overlay_chain.append(f"[v{i}]")
-
-            # Now create the crossfade transitions
-            fade_chain = []
-            fade_chain.append(overlay_chain[0])
-
-            for i in range(1, len(overlay_chain)):
-                prev_i = i - 1
-                # Create crossfade between consecutive videos
-                filter_complex.append(
-                    f"{fade_chain[-1]}{overlay_chain[i]} xfade=transition=fade:duration={transition_duration}:offset={((i)*image_duration)-transition_duration}[fade{i}];"
-                )
-
-                fade_chain.append(f"[fade{i}]")
-
-            # Create FFmpeg command for generating the video
-            ffmpeg_cmd = [
-                settings.FFMPEG_PATH,
-                "-y",  # Overwrite output file if it exists
-            ]
-
-            # Add all input images
-            for img_path in image_paths:
-                ffmpeg_cmd.extend(
-                    ["-loop", "1", "-t", str(image_duration), "-i", img_path]
-                )
-
-            # Add audio input
-            ffmpeg_cmd.extend(["-i", audio_path])
-
-            # Add filter complex
-            filter_str = "".join(filter_complex)
-
-            # Add last element from fade_chain and the audio mapping
-            filter_str += f"{fade_chain[-1]}[a] amix=inputs=1[aout]"
-
-            ffmpeg_cmd.extend(
-                [
-                    "-filter_complex",
-                    filter_str,
-                    "-map",
-                    fade_chain[-1],
-                    "-map",
-                    f"{len(image_paths)}:a",
-                    "-c:v",
-                    "libx264",
-                    "-c:a",
-                    "aac",
-                    "-b:a",
-                    "192k",
-                    "-shortest",
-                    "-pix_fmt",
-                    "yuv420p",
-                    video_path,
-                ]
-            )
-
-            # Execute FFmpeg command
-            logger.info(f"Executing FFmpeg command: {' '.join(ffmpeg_cmd)}")
-            process = await asyncio.create_subprocess_exec(
-                *ffmpeg_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, stderr = await process.communicate()
-
-            if process.returncode != 0:
-                error_msg = stderr.decode("utf-8")
-                logger.error(f"FFmpeg error: {error_msg}")
-                raise Exception(f"Failed to create video: {error_msg}")
-
-            logger.info(f"Video created successfully at {video_path}")
-
-            # Upload the video to Digital Ocean Spaces
-            video_url = upload_to_do_spaces(
-                file_path=video_path,
-                object_name=video_filename,
-                file_type="videos",
-                content_type="video/mp4",
-            )
-
-            return video_url
-
-    except Exception as e:
-        logger.error(f"Error creating video: {str(e)}")
-        raise Exception(f"Failed to create video: {str(e)}")
 
 
 # Simpler version for testing or quick generation
@@ -200,6 +26,7 @@ async def create_simple_slideshow(request, image_duration=10) -> str:
     Create a simple slideshow video without complex transitions.
     - Each image appears for `image_duration` seconds.
     - If not enough images, repeat them randomly until audio duration is filled.
+    - Uses hardware acceleration when available.
     """
     try:
         temp_dir = TEMP_DIR  # Ensure consistent path usage
@@ -255,32 +82,97 @@ async def create_simple_slideshow(request, image_duration=10) -> str:
         video_path = os.path.join(settings.OUTPUT_DIR, "videos", video_filename)
         video_path = os.path.abspath(video_path)
 
-        # Construct FFmpeg command
+        # Construct FFmpeg command with hardware acceleration
         cmd = [
             settings.FFMPEG_PATH,
             "-y",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            image_list_path,
-            "-i",
-            audio_path,
-            "-c:v",
-            "libx264",
-            "-c:a",
-            "aac",
-            "-b:a",
-            "192k",
-            "-pix_fmt",
-            "yuv420p",
-            "-shortest",
-            video_path,
         ]
 
+        # Add hardware acceleration if available
+        if HW_ACCEL["available"]:
+            cmd.extend(
+                [
+                    "-hwaccel",
+                    HW_ACCEL["hwaccel"],
+                ]
+            )
+
+        # Input files
+        cmd.extend(
+            [
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                image_list_path,
+                "-i",
+                audio_path,
+            ]
+        )
+
+        # Output codec configuration
+        if HW_ACCEL["available"] and HW_ACCEL["encoder"]:
+            # Use GPU encoding
+            cmd.extend(
+                [
+                    "-c:v",
+                    HW_ACCEL["encoder"],
+                ]
+            )
+
+            # Add specific options for the encoder based on priority
+            if HW_ACCEL["nvidia"]:
+                cmd.extend(
+                    [
+                        # NVIDIA-specific options
+                        "-preset",
+                        "p4",  # Fast encoding preset for NVENC
+                        "-b:v",
+                        "5M",  # Target bitrate
+                    ]
+                )
+            elif HW_ACCEL["intel"]:
+                cmd.extend(
+                    [
+                        # Intel-specific options
+                        "-preset",
+                        "medium",
+                        "-b:v",
+                        "5M",  # Target bitrate
+                    ]
+                )
+        else:
+            # Fallback to CPU encoding
+            cmd.extend(
+                [
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "medium",
+                    "-crf",
+                    "23",
+                    "-pix_fmt",
+                    "yuv420p",
+                ]
+            )
+
+        # Common parameters regardless of hardware acceleration
+        cmd.extend(
+            [
+                "-c:a",
+                "aac",
+                "-b:a",
+                "192k",
+                "-shortest",
+                video_path,
+            ]
+        )
+
         # Execute FFmpeg command
-        logger.info(f"Executing FFmpeg: {' '.join(cmd)}")
+        logger.info(
+            f"Executing FFmpeg with {'GPU acceleration' if HW_ACCEL['available'] else 'CPU'}: {' '.join(cmd)}"
+        )
         process = await asyncio.create_subprocess_exec(
             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
@@ -312,6 +204,7 @@ async def create_simple_video(request: CreateVideoRequest) -> str:
     """
     Creates a video by generating motion videos for each image, with durations
     proportional to the length of the corresponding scripts, then combines them.
+    Uses hardware acceleration when available.
 
     Args:
         request: The video creation request containing image URLs, scripts, and audio URL.
@@ -327,10 +220,9 @@ async def create_simple_video(request: CreateVideoRequest) -> str:
         temp_dir = os.path.join(TEMP_DIR, uuid.uuid4().hex)
         os.makedirs(temp_dir, exist_ok=True)
 
-        # Download audio
-        audio_ext = os.path.splitext(request.audio_url)[1] or ".mp3"
-        audio_path = os.path.join(temp_dir, f"audio{audio_ext}")
-        await download_file(request.audio_url, audio_path)
+        # Download audio - FIXED: Pass directory path to download_file, not full file path
+        audio_path = await download_file(request.audio_url, temp_dir)
+        logger.info(f"Downloaded audio to: {audio_path}")
 
         # Get the audio duration
         audio_duration = get_audio_duration(audio_path)
@@ -375,107 +267,3 @@ async def create_simple_video(request: CreateVideoRequest) -> str:
     except Exception as e:
         logger.error(f"Error creating video: {str(e)}")
         raise Exception(f"Failed to create video: {str(e)}")
-
-
-async def combine_videos_with_audio(video_paths: list, audio_path: str) -> str:
-    """
-    Combine multiple video clips into a single video and add audio track.
-
-    Args:
-        video_paths: List of paths to video clips.
-        audio_path: Path to the audio file.
-
-    Returns:
-        URL of the uploaded final video.
-    """
-    temp_dir = os.path.join(TEMP_DIR, uuid.uuid4().hex)
-    os.makedirs(temp_dir, exist_ok=True)
-
-    # Create a temporary file for the video list
-    concat_file = os.path.join(temp_dir, "concat_list.txt")
-    with open(concat_file, "w", encoding="utf-8") as f:
-        for video_path in video_paths:
-            f.write(f"file '{os.path.abspath(video_path)}'\n")
-
-    # First, concatenate the videos
-    combined_video_path = os.path.join(temp_dir, f"combined_{uuid.uuid4().hex}.mp4")
-    concat_cmd = [
-        settings.FFMPEG_PATH,
-        "-y",
-        "-f",
-        "concat",
-        "-safe",
-        "0",
-        "-i",
-        concat_file,
-        "-c",
-        "copy",
-        combined_video_path,
-    ]
-
-    logger.info(f"Concatenating videos: {' '.join(concat_cmd)}")
-    concat_process = await asyncio.create_subprocess_exec(
-        *concat_cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, stderr = await concat_process.communicate()
-
-    if concat_process.returncode != 0:
-        error_msg = stderr.decode("utf-8")
-        logger.error(f"FFmpeg concat error: {error_msg}")
-        raise Exception(f"Failed to combine videos: {error_msg}")
-
-    # Now, add the audio to the combined video
-    final_video_id = uuid.uuid4().hex
-    final_video_filename = f"{final_video_id}.mp4"
-    final_video_path = os.path.join(VIDEOS_DIR, final_video_filename)
-
-    audio_cmd = [
-        settings.FFMPEG_PATH,
-        "-y",
-        "-i",
-        combined_video_path,
-        "-i",
-        audio_path,
-        "-c:v",
-        "copy",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "192k",
-        "-shortest",
-        final_video_path,
-    ]
-
-    logger.info(f"Adding audio to video: {' '.join(audio_cmd)}")
-    audio_process = await asyncio.create_subprocess_exec(
-        *audio_cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, stderr = await audio_process.communicate()
-
-    if audio_process.returncode != 0:
-        error_msg = stderr.decode("utf-8")
-        logger.error(f"FFmpeg audio error: {error_msg}")
-        raise Exception(f"Failed to add audio to video: {error_msg}")
-
-    logger.info(f"Final video created: {final_video_path}")
-
-    # Upload video to storage
-    video_url = upload_to_do_spaces(
-        file_path=final_video_path,
-        object_name=final_video_filename,
-        file_type="videos",
-        content_type="video/mp4",
-    )
-
-    # Clean up temp files
-    try:
-        os.remove(combined_video_path)
-        os.remove(concat_file)
-    except:
-        pass
-
-    return video_url

@@ -6,14 +6,11 @@ import asyncio
 import httpx
 from PIL import Image
 from io import BytesIO
-from app.core.config import settings
 from app.utils.upload import upload_to_do_spaces
-from openai import OpenAI  # Giữ nguyên theo logic gốc
+from openai import OpenAI
+from app.utils.media import IMAGES_DIR
 
 logger = get_logger(__name__)
-
-IMAGES_DIR = os.path.join(settings.OUTPUT_DIR, "images")
-os.makedirs(IMAGES_DIR, exist_ok=True)
 
 
 async def generate_image_from_prompt(prompt: str, size: str = "256x256") -> str:

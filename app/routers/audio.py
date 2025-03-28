@@ -39,12 +39,31 @@ async def list_available_voices():
     Returns a list of available voices for text-to-speech.
     """
     voices = [
-        {"id": "alloy", "description": "Neutral, balanced voice"},
-        {"id": "echo", "description": "Deeper, warm voice"},
-        {"id": "fable", "description": "Soft, expressive voice"},
-        {"id": "onyx", "description": "Authoritative, deep voice"},
-        {"id": "nova", "description": "Friendly, energetic voice"},
-        {"id": "shimmer", "description": "Clear, gentle voice"},
+        {
+            "id": "alloy",
+            "description": "Neutral, balanced voice",
+            "url": "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/audio/preview/openai/openai-fm-alloy-audio.wav",
+        },
+        {
+            "id": "ash",
+            "description": "Deep, resonant voice",
+            "url": "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/audio/preview/openai/openai-fm-ash-audio.wav",
+        },
+        {
+            "id": "echo",
+            "description": "Soft, gentle voice",
+            "url": "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/audio/preview/openai/openai-fm-echo-audio.wav",
+        },
+        {
+            "id": "sage",
+            "description": "Warm, friendly voice",
+            "url": "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/audio/preview/openai/openai-fm-sage-audio.wav",
+        },
+        {
+            "id": "verse",
+            "description": "Strong, authoritative voice",
+            "url": "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/audio/preview/openai/openai-fm-verse-audio.wav",
+        },
     ]
     return {"voices": voices}
 
