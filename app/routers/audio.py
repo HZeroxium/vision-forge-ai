@@ -1,11 +1,12 @@
 # app/routers/audio.py
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Query
 from app.models.schemas import CreateAudioRequest, CreateAudioResponse
 from app.services.audio import (
     create_audio_from_script_openai,
     create_audio_from_script_google,
 )
 from app.utils.logger import get_logger
+from typing import Optional
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -34,38 +35,59 @@ def synthesize_speech_google(request: CreateAudioRequest):
 
 
 @router.get("/tts/openai/voices")
-async def list_available_voices():
+async def get_voice_info(
+    voice_id: Optional[str] = Query(
+        None, description="The ID of the specific voice to retrieve"
+    )
+):
     """
-    Returns a list of available voices for text-to-speech.
+    Returns voice information for text-to-speech.
+
+    If a voice_id query parameter is provided, returns only the URL for that voice.
+    If no voice_id is provided, returns information about all available voices.
+
+    Example: /tts/openai/voices?voice_id=alloy
     """
-    voices = [
-        {
-            "id": "alloy",
+    # Define voice data - consider moving this to a constant or database in production
+    voice_data = {
+        "alloy": {
             "description": "Neutral, balanced voice",
             "url": "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/audio/preview/openai/openai-fm-alloy-audio.wav",
         },
-        {
-            "id": "ash",
+        "ash": {
             "description": "Deep, resonant voice",
             "url": "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/audio/preview/openai/openai-fm-ash-audio.wav",
         },
-        {
-            "id": "echo",
+        "echo": {
             "description": "Soft, gentle voice",
             "url": "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/audio/preview/openai/openai-fm-echo-audio.wav",
         },
-        {
-            "id": "sage",
+        "sage": {
             "description": "Warm, friendly voice",
             "url": "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/audio/preview/openai/openai-fm-sage-audio.wav",
         },
-        {
-            "id": "verse",
+        "verse": {
             "description": "Strong, authoritative voice",
             "url": "https://vision-forge.sgp1.cdn.digitaloceanspaces.com/audio/preview/openai/openai-fm-verse-audio.wav",
         },
-    ]
-    return {"voices": voices}
+    }
+
+    # If a specific voice ID is requested
+    if voice_id:
+        logger.info(f"Voice URL requested for ID: {voice_id}")
+
+        if voice_id in voice_data:
+            # Return only the URL for the requested voice
+            return {"url": voice_data[voice_id]["url"]}
+        else:
+            # Return 404 if voice ID not found
+            logger.warning(f"Requested voice ID not found: {voice_id}")
+            raise HTTPException(
+                status_code=404, detail=f"Voice ID '{voice_id}' not found"
+            )
+
+    # If no voice ID provided, return alloy voice by default
+    return {"url": voice_data["alloy"]["url"]}
 
 
 @router.post("/tts/openai/dummy", response_model=CreateAudioResponse)

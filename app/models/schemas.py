@@ -32,6 +32,12 @@ class CreateImageRequest(BaseModel):
         example="A futuristic cityscape at sunset",
     )
 
+    style: Optional[str] = Field(
+        None,
+        description="The visual style for the image (e.g. realistic, cartoon, abstract)",
+        example="realistic",
+    )
+
 
 class CreateImageResponse(BaseModel):
     image_url: str

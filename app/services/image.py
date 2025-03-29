@@ -13,13 +13,15 @@ from app.utils.media import IMAGES_DIR
 logger = get_logger(__name__)
 
 
-async def generate_image_from_prompt(prompt: str, size: str = "256x256") -> str:
+async def generate_image_from_prompt(
+    prompt: str, style: str, size: str = "256x256"
+) -> str:
     """
     Generate an image using OpenAI's DALL·E model and process it asynchronously.
     This function wraps synchronous OpenAI API call using asyncio.to_thread.
     """
     try:
-        enhanced_prompt = f"{prompt}"
+        enhanced_prompt = f"{prompt} (1:1 aspect ratio, 8K, highly detailed, {style})"
         logger.info(f"Generating image with prompt: {enhanced_prompt}")
 
         client = OpenAI()

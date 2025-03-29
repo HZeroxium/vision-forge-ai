@@ -14,7 +14,7 @@ async def generate_image(request: CreateImageRequest):
     Endpoint to generate an image based on a prompt.
     """
     logger.info(f"Generating image with prompt: {request.prompt[:50]}...")
-    image_url = await generate_image_from_prompt(request.prompt)
+    image_url = await generate_image_from_prompt(request.prompt, request.style)
     logger.info(f"Image generation successful, URL: {image_url}")
     return CreateImageResponse(image_url=image_url)
 

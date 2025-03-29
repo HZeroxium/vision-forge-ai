@@ -11,10 +11,10 @@ from app.services.video import (
     create_motion_video_from_image,
     create_simple_video,
 )
-import logging
+from app.utils.logger import get_logger
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @router.post("/create-simple-old", response_model=CreateVideoResponse)
