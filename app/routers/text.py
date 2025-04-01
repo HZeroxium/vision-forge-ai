@@ -43,6 +43,12 @@ async def create_dummy_script(request: CreateScriptRequest):
     """
     Dummy endpoint for testing script creation.
     """
+    import asyncio
+
+    logger.info("Simulating script creation delay of 5 seconds...")
+    await asyncio.sleep(5)  # Wait for 5 seconds
+    logger.info("Delay completed, returning dummy script response")
+
     return DUMMY_SCRIPT_RESPONSE
 
 
@@ -51,4 +57,11 @@ async def generate_dummy_image_prompts(request: CreateImagePromptsRequest):
     """
     Dummy endpoint for testing image prompt generation.
     """
+
+    import asyncio
+
+    logger.info("Simulating image prompt generation delay of 5 seconds...")
+    await asyncio.sleep(5)
+    logger.info("Delay completed, returning dummy image prompts response")
+
     return DUMMY_IMAGE_PROMPTS_RESPONSE

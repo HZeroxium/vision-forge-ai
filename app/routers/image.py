@@ -25,5 +25,10 @@ async def generate_dummy_image(request: CreateImageRequest):
     Dummy endpoint for testing image generation.
     """
     from app.constants.dummy import get_dummy_image_response
+    import asyncio
+
+    logger.info("Simulating image generation delay of 5 seconds...")
+    await asyncio.sleep(5)  # Wait for 5 seconds
+    logger.info("Delay completed, returning dummy image response")
 
     return get_dummy_image_response()
