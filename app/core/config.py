@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     TAVILY_API_KEY: str = Field("", env="TAVILY_API_KEY")
     ENABLE_RAG: bool = Field(True, env="ENABLE_RAG")
 
+    PINECONE_API_KEY: str = Field("", env="PINECONE_API_KEY")
+    PINECONE_INDEX_NAME: str = Field("vision-forge", env="PINECONE_INDEX_NAME")
+    TEXT_EMBEDDING_MODEL: str = Field(
+        "text-embedding-3-small", env="TEXT_EMBEDDING_MODEL"
+    )
+
     class Config:
         env_file = ".env"
         case_sensitive = True

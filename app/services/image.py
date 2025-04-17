@@ -9,20 +9,51 @@ from io import BytesIO
 from app.utils.upload import upload_to_do_spaces
 from openai import OpenAI
 from app.utils.media import IMAGES_DIR
+from app.utils.pinecone import (
+    get_embedding,
+    search_similar_prompts,
+    upsert_prompt_embedding,
+)
 
 logger = get_logger(__name__)
 
 
 async def generate_image_from_prompt(
-    prompt: str, style: str, size: str = "256x256"
+    prompt: str, style: str, size: str = "256x256", similarity_threshold: float = 0.85
 ) -> str:
     """
-    Generate an image using OpenAI's DALL·E model and process it asynchronously.
-    This function wraps synchronous OpenAI API call using asyncio.to_thread.
+    Generate an image using OpenAI's DALL·E model or retrieve from Pinecone if similar prompt exists.
+
+    Args:
+        prompt: The text prompt for image generation
+        style: The style to apply to the image
+        size: Image size (default "256x256")
+        similarity_threshold: Threshold for semantic similarity (default 0.85)
+
+    Returns:
+        URL of the generated or retrieved image
     """
     try:
         enhanced_prompt = f"{prompt} (1:1 aspect ratio, 8K, highly detailed, {style})"
-        logger.info(f"Generating image with prompt: {enhanced_prompt}")
+        logger.info(f"Processing image request with prompt: {enhanced_prompt}")
+
+        # First, generate embedding for semantic search
+        embedding = await asyncio.to_thread(get_embedding, enhanced_prompt)
+
+        # Search Pinecone for similar prompts
+        existing_image_url = await asyncio.to_thread(
+            search_similar_prompts, embedding, similarity_threshold
+        )
+
+        # If similar prompt found, return existing image URL
+        if existing_image_url:
+            logger.info(
+                f"Using existing image from similar prompt: {existing_image_url}"
+            )
+            return existing_image_url
+
+        # Otherwise, generate new image
+        logger.info(f"No similar prompt found. Generating new image with OpenAI")
 
         client = OpenAI()
         # Wrap the synchronous API call in asyncio.to_thread to avoid blocking
@@ -61,6 +92,12 @@ async def generate_image_from_prompt(
         )
         logger.info(f"Image uploaded to {image_url_final}")
 
+        # Store new embedding and image URL in Pinecone
+        await asyncio.to_thread(
+            upsert_prompt_embedding, enhanced_prompt, embedding, image_url_final
+        )
+        logger.info(f"Stored new prompt embedding and image URL in Pinecone")
+
         return image_url_final
 
     except Exception as e:
@@ -77,5 +114,5 @@ async def create_image_prompt(content: str, style: str) -> str:
 if __name__ == "__main__":
     prompt = "A futuristic cityscape at sunset"
     style = "cyberpunk"
-    image_path = generate_image_from_prompt(prompt, style)
+    image_path = asyncio.run(generate_image_from_prompt(prompt, style))
     print(f"Image saved at: {image_path}")
