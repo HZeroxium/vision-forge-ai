@@ -5,11 +5,13 @@ from app.models.video import (
     CreateVideoResponse,
     CreateMotionVideoRequest,
     CreateMotionVideoResponse,
+    CreateMultiVoiceVideoRequest,
 )
 from app.services.video import (
     create_simple_slideshow,
     create_motion_video_from_image,
     create_simple_video,
+    create_multi_voice_video,
 )
 from app.utils.logger import get_logger
 from app.constants.dummy import get_dummy_video_response
@@ -119,6 +121,81 @@ async def create_dummy_video(request: CreateVideoRequest):
     import asyncio
 
     logger.info("Simulating video creation delay of 5 seconds...")
+    await asyncio.sleep(5)
+    logger.info("Delay completed, returning dummy video response")
+
+    return get_dummy_video_response()
+
+
+@router.post("/create-multi-voice", response_model=CreateVideoResponse)
+async def create_video_with_multiple_voices(request: CreateMultiVoiceVideoRequest):
+    """
+    Endpoint to create a video with multiple voice narration.
+
+    This endpoint creates a video where each image is animated with a motion effect,
+    and each corresponding script segment is narrated with a different voice.
+    The segments are combined into a single cohesive video.
+
+    Returns the URL of the generated video.
+    """
+    try:
+        # Validate voice values
+        valid_voices = [
+            "alloy",
+            "echo",
+            "nova",
+            "shimmer",
+            "fable",
+            "onyx",
+            "sage",
+            "ash",
+            "verse",
+        ]
+        for voice in request.voices:
+            if voice not in valid_voices:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid voice: '{voice}'. Valid options are: {', '.join(valid_voices)}",
+                )
+
+        if not request.scripts:
+            raise HTTPException(
+                status_code=400, detail="Scripts are required for this endpoint"
+            )
+
+        if len(request.image_urls) != len(request.scripts) or len(
+            request.scripts
+        ) != len(request.voices):
+            raise HTTPException(
+                status_code=400,
+                detail="The number of images, scripts, and voices must be the same",
+            )
+
+        logger.info(f"Creating multi-voice video with {len(request.scripts)} segments")
+
+        # Generate the multi-voice video
+        video_url = await create_multi_voice_video(request)
+
+        logger.info(f"Multi-voice video creation successful, URL: {video_url}")
+        return CreateVideoResponse(video_url=video_url)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Multi-voice video creation failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create multi-voice video: {str(e)}"
+        )
+
+
+@router.post("/create-multi-voice/dummy", response_model=CreateVideoResponse)
+async def create_dummy_multi_voice_video(request: CreateMultiVoiceVideoRequest):
+    """
+    Dummy endpoint for testing multi-voice video creation.
+    """
+    import asyncio
+
+    logger.info("Simulating multi-voice video creation delay of 5 seconds...")
     await asyncio.sleep(5)
     logger.info("Delay completed, returning dummy video response")
 

@@ -36,3 +36,22 @@ class CreateMotionVideoRequest(BaseModel):
 
 class CreateMotionVideoResponse(BaseModel):
     video_url: str
+
+
+class CreateMultiVoiceVideoRequest(BaseModel):
+    image_urls: List[str] = Field(
+        ..., description="List of image URLs to include in the video"
+    )
+    scripts: List[str] = Field(
+        ...,
+        description="List of scripts corresponding to each image segment",
+    )
+    voices: List[str] = Field(
+        ...,
+        description="List of voice IDs to use for each script segment (must match scripts length)",
+        example=["alloy", "echo", "sage"],
+    )
+    title: Optional[str] = Field(None, description="Optional title for the video")
+    transition_duration: Optional[float] = Field(
+        1.0, description="Duration of transition effects in seconds (default: 1.0)"
+    )

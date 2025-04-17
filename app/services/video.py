@@ -5,9 +5,9 @@ import asyncio
 import random
 import logging
 from app.core.config import settings
-from app.models.schemas import CreateVideoRequest
+from app.models.video import CreateVideoRequest, CreateMultiVoiceVideoRequest
 from app.utils.upload import upload_to_do_spaces
-from app.services.audio import get_audio_duration
+from app.services.audio import get_audio_duration, create_audio_from_script_openai
 from app.services.motion import create_motion_video_from_image
 from app.utils.media import (
     download_file,
@@ -267,3 +267,152 @@ async def create_simple_video(request: CreateVideoRequest) -> str:
     except Exception as e:
         logger.error(f"Error creating video: {str(e)}")
         raise Exception(f"Failed to create video: {str(e)}")
+
+
+async def create_multi_voice_video(request: CreateMultiVoiceVideoRequest) -> str:
+    """
+    Creates a video with multiple voice segments, each corresponding to a different image.
+    Each script segment is narrated with its corresponding voice.
+    Uses hardware acceleration when available.
+
+    Args:
+        request: The video creation request containing image URLs, scripts, and voice IDs.
+
+    Returns:
+        The URL of the generated video.
+    """
+    try:
+        # Validate input: number of images should match number of scripts and voices
+        if len(request.image_urls) != len(request.scripts) or len(
+            request.scripts
+        ) != len(request.voices):
+            raise ValueError(
+                "The number of images, scripts, and voices must be the same"
+            )
+
+        # Create a unique working directory
+        temp_dir = os.path.join(TEMP_DIR, uuid.uuid4().hex)
+        os.makedirs(temp_dir, exist_ok=True)
+
+        # Step 1: Generate audio for each script segment with the corresponding voice
+        audio_paths = []
+        audio_durations = []
+
+        logger.info(
+            f"Generating {len(request.scripts)} audio segments with different voices"
+        )
+        for i, (script, voice) in enumerate(zip(request.scripts, request.voices)):
+            logger.info(f"Generating audio segment {i+1} with voice '{voice}'")
+            audio_url, duration = await create_audio_from_script_openai(script, voice)
+
+            # Download the generated audio
+            audio_path = await download_file(
+                audio_url, os.path.join(temp_dir, f"audio_{i}.mp3")
+            )
+            audio_paths.append(audio_path)
+            audio_durations.append(duration)
+
+            logger.info(f"Audio segment {i+1} generated, duration: {duration}s")
+
+        # Step 2: Generate motion videos for each image with corresponding audio duration
+        motion_video_paths = []
+        for i, (image_url, duration) in enumerate(
+            zip(request.image_urls, audio_durations)
+        ):
+            logger.info(
+                f"Creating motion video {i+1}/{len(request.image_urls)} with duration {duration:.2f}s"
+            )
+            video_path = await create_motion_video_from_image(image_url, duration)
+            motion_video_paths.append(video_path)
+
+        # Step 3: Combine each video segment with its corresponding audio
+        combined_segment_paths = []
+        for i, (video_path, audio_path) in enumerate(
+            zip(motion_video_paths, audio_paths)
+        ):
+            segment_path = os.path.join(temp_dir, f"segment_{i}.mp4")
+
+            # FFmpeg command to combine video with audio
+            cmd = [
+                settings.FFMPEG_PATH,
+                "-y",
+                "-i",
+                video_path,
+                "-i",
+                audio_path,
+                "-c:v",
+                "copy",  # Copy video to avoid re-encoding
+                "-c:a",
+                "aac",
+                "-b:a",
+                "192k",
+                "-shortest",
+                segment_path,
+            ]
+
+            logger.info(f"Creating segment {i+1} by combining video and audio")
+            process = await asyncio.create_subprocess_exec(
+                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
+
+            if process.returncode != 0:
+                error_msg = stderr.decode("utf-8")
+                logger.error(f"FFmpeg error for segment {i+1}: {error_msg}")
+                raise Exception(f"Failed to create segment {i+1}: {error_msg}")
+
+            combined_segment_paths.append(segment_path)
+
+        # Step 4: Create a file list for the segments
+        segments_list_path = os.path.join(temp_dir, "segments.txt")
+        with open(segments_list_path, "w", encoding="utf-8") as f:
+            for segment_path in combined_segment_paths:
+                f.write(f"file '{segment_path}'\n")
+
+        # Step 5: Concatenate all segments into the final video
+        video_id = uuid.uuid4().hex
+        final_video_path = os.path.join(
+            settings.OUTPUT_DIR, "videos", f"{video_id}.mp4"
+        )
+
+        concat_cmd = [
+            settings.FFMPEG_PATH,
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            segments_list_path,
+            "-c",
+            "copy",  # Copy streams to avoid re-encoding
+            final_video_path,
+        ]
+
+        logger.info("Creating final video by concatenating all segments")
+        concat_process = await asyncio.create_subprocess_exec(
+            *concat_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await concat_process.communicate()
+
+        if concat_process.returncode != 0:
+            error_msg = stderr.decode("utf-8")
+            logger.error(f"FFmpeg error during final concatenation: {error_msg}")
+            raise Exception(f"Failed to create final video: {error_msg}")
+
+        logger.info(f"Final video created successfully at {final_video_path}")
+
+        # Upload the final video to storage
+        video_url = upload_to_do_spaces(
+            file_path=final_video_path,
+            object_name=f"{video_id}.mp4",
+            file_type="videos",
+            content_type="video/mp4",
+        )
+
+        logger.info(f"Final video uploaded, URL: {video_url}")
+        return video_url
+
+    except Exception as e:
+        logger.error(f"Error creating multi-voice video: {str(e)}")
+        raise Exception(f"Failed to create multi-voice video: {str(e)}")
