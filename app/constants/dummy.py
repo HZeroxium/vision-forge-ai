@@ -6,6 +6,7 @@ from app.models.schemas import (
     CreateImageResponse,
     CreateAudioResponse,
     ImagePromptDetail,
+    CreateVideoResponse,
 )
 
 import random
@@ -102,6 +103,15 @@ def get_dummy_audio_response():
     )
 
 
+def get_dummy_video_response():
+    return CreateVideoResponse(
+        video_url="https://vision-forge.sgp1.cdn.digitaloceanspaces.com/videos/0277518363c24c4c9af68cc968a45f25.mp4",
+    )
+
+
 # Static instances for backward compatibility
 DUMMY_IMAGE_RESPONSE = get_dummy_image_response()
 DUMMY_AUDIO_RESPONSE = get_dummy_audio_response()
+DUMMY_VIDEO_RESPONSE = CreateVideoResponse(
+    video_url="https://vision-forge.sgp1.cdn.digitaloceanspaces.com/videos/0277518363c24c4c9af68cc968a45f25.mp4",
+)

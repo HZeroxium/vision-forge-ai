@@ -12,6 +12,7 @@ from app.services.video import (
     create_simple_video,
 )
 from app.utils.logger import get_logger
+from app.constants.dummy import get_dummy_video_response
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -108,3 +109,17 @@ async def create_video_from_scripts(request: CreateVideoRequest):
     except Exception as e:
         logger.error(f"Video creation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to create video: {str(e)}")
+
+
+@router.post("/create-simple/dummy", response_model=CreateVideoResponse)
+async def create_dummy_video(request: CreateVideoRequest):
+    """
+    Dummy endpoint for testing video creation.
+    """
+    import asyncio
+
+    logger.info("Simulating video creation delay of 5 seconds...")
+    await asyncio.sleep(5)
+    logger.info("Delay completed, returning dummy video response")
+
+    return get_dummy_video_response()
