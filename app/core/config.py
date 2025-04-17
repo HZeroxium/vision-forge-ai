@@ -22,6 +22,9 @@ class Settings(BaseSettings):
 
     FFMPEG_PATH: str = Field("ffmpeg", env="FFMPEG_PATH")
 
+    TAVILY_API_KEY: str = Field("", env="TAVILY_API_KEY")
+    ENABLE_RAG: bool = Field(True, env="ENABLE_RAG")
+
     class Config:
         env_file = ".env"
         case_sensitive = True

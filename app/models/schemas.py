@@ -21,8 +21,22 @@ class CreateScriptRequest(BaseModel):
     )
 
 
+class Source(BaseModel):
+    """Source model for citations and references"""
+
+    title: str = Field(..., description="Title of the source")
+    content: str = Field(..., description="Excerpt or content from the source")
+    url: str = Field(..., description="URL of the source")
+    source_type: str = Field(
+        ..., description="Type of source (wikipedia, tavily, etc.)"
+    )
+
+
 class CreateScriptResponse(BaseModel):
     content: str
+    sources: Optional[List[Source]] = Field(
+        None, description="List of sources used to generate the content"
+    )
 
 
 class CreateImageRequest(BaseModel):
