@@ -1,13 +1,14 @@
 # app/constants/dummy.py
 
-from app.models.schemas import (
+from app.models.text import (
     CreateScriptResponse,
     CreateImagePromptsResponse,
-    CreateImageResponse,
-    CreateAudioResponse,
     ImagePromptDetail,
-    CreateVideoResponse,
 )
+
+from app.models.audio import CreateAudioResponse
+from app.models.image import CreateImageResponse
+from app.models.video import CreateVideoResponse
 
 import random
 

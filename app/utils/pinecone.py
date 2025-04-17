@@ -2,7 +2,7 @@
 
 import os
 import uuid
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Union
 from pinecone import Pinecone
 from openai import OpenAI
 from app.utils.logger import get_logger
@@ -54,55 +54,93 @@ def get_embedding(text: str) -> List[float]:
 
 
 def search_similar_prompts(
-    prompt_embedding: List[float], threshold: float = 0.85, top_k: int = 3
-) -> Optional[str]:
+    prompt_embedding: List[float],
+    threshold: float = 0.85,
+    top_k: int = 3,
+    namespace: str = "image-prompts",
+    metadata_filter: Optional[Dict[str, Any]] = None,
+    return_full_metadata: bool = False,
+) -> Union[Optional[str], Tuple[Optional[str], Dict[str, Any]]]:
     """
-    Search Pinecone for similar prompts and return the image URL if similarity is above threshold
+    Search Pinecone for similar prompts and return the URL and optionally additional metadata.
 
     Args:
         prompt_embedding: The embedding vector of the prompt
         threshold: The similarity threshold (default 0.85)
         top_k: Number of results to return
+        namespace: Pinecone namespace to search (default "image-prompts")
+        metadata_filter: Optional filter to apply on metadata fields
+        return_full_metadata: If True, returns both URL and full metadata
 
     Returns:
-        The image URL if a match is found above threshold, None otherwise
+        Either the URL string if return_full_metadata is False, or
+        a tuple of (URL, metadata dictionary) if return_full_metadata is True
     """
     global index
     if index is None:
         init_pinecone()
 
     try:
-        response = index.query(
-            vector=prompt_embedding,
-            top_k=top_k,
-            include_values=False,
-            include_metadata=True,
-            namespace="image-prompts",
-        )
+        # Prepare query parameters
+        query_params = {
+            "vector": prompt_embedding,
+            "top_k": top_k,
+            "include_values": False,
+            "include_metadata": True,
+            "namespace": namespace,
+        }
+
+        # Add filter if provided
+        if metadata_filter:
+            filter_dict = {}
+            for key, value in metadata_filter.items():
+                filter_dict[key] = {"$eq": value}
+            query_params["filter"] = filter_dict
+
+        # Execute query
+        response = index.query(**query_params)
 
         if response.matches and len(response.matches) > 0:
             top_match = response.matches[0]
             if top_match.score >= threshold:
-                logger.info(f"Found similar prompt with score {top_match.score}")
-                return top_match.metadata.get("image_url")
+                logger.info(
+                    f"Found similar item with score {top_match.score} in namespace {namespace}"
+                )
 
-        logger.info("No similar prompts found above threshold")
-        return None
+                # Extract URL from metadata (handle different field names based on namespace)
+                url_field = "audio_url" if namespace == "tts" else "image_url"
+                url = top_match.metadata.get(url_field) or top_match.metadata.get(
+                    "image_url"
+                )
+
+                # Return full metadata if requested, otherwise just URL
+                if return_full_metadata:
+                    return url, top_match.metadata
+                return url
+
+        logger.info(f"No similar items found above threshold in namespace {namespace}")
+        return (None, {}) if return_full_metadata else None
     except Exception as e:
         logger.error(f"Error searching Pinecone: {e}")
-        return None
+        return (None, {}) if return_full_metadata else None
 
 
 def upsert_prompt_embedding(
-    prompt: str, embedding: List[float], image_url: str
+    prompt: str,
+    embedding: List[float],
+    url: str,
+    metadata: Optional[Dict[str, Any]] = None,
+    namespace: str = "image-prompts",
 ) -> bool:
     """
-    Upsert a prompt embedding and image URL to Pinecone
+    Upsert an embedding and associated metadata to Pinecone
 
     Args:
         prompt: The original prompt text
         embedding: The embedding vector
-        image_url: The URL of the generated image
+        url: The URL of the generated content (image or audio)
+        metadata: Additional metadata to store
+        namespace: Pinecone namespace
 
     Returns:
         Boolean indicating success
@@ -114,18 +152,152 @@ def upsert_prompt_embedding(
     vector_id = str(uuid.uuid4())
 
     try:
+        # Prepare metadata
+        metadata_dict = {"prompt": prompt}
+
+        # Set URL field based on namespace
+        if namespace == "tts":
+            metadata_dict["audio_url"] = url
+        else:
+            metadata_dict["image_url"] = url
+
+        # Add any additional metadata
+        if metadata:
+            metadata_dict.update(metadata)
+
         index.upsert(
             vectors=[
                 {
                     "id": vector_id,
                     "values": embedding,
-                    "metadata": {"prompt": prompt, "image_url": image_url},
+                    "metadata": metadata_dict,
                 }
             ],
-            namespace="image-prompts",
+            namespace=namespace,
         )
-        logger.info(f"Upserted prompt embedding with ID {vector_id}")
+        logger.info(f"Upserted embedding with ID {vector_id} to namespace {namespace}")
         return True
     except Exception as e:
         logger.error(f"Error upserting to Pinecone: {e}")
         return False
+
+
+def delete_vector_from_pinecone(
+    vector_id: str, namespace: str = "image-prompts"
+) -> bool:
+    """
+    Delete a vector from Pinecone by ID.
+
+    Args:
+        vector_id: The ID of the vector to delete
+        namespace: The namespace containing the vector
+
+    Returns:
+        Boolean indicating success
+    """
+    global index
+    if index is None:
+        init_pinecone()
+
+    try:
+        index.delete(ids=[vector_id], namespace=namespace)
+        logger.info(f"Deleted vector {vector_id} from namespace {namespace}")
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting vector from Pinecone: {e}")
+        return False
+
+
+def delete_vectors_by_filter(namespace: str, metadata_filter: Dict[str, Any]) -> bool:
+    """
+    Delete vectors from Pinecone that match a metadata filter.
+
+    Args:
+        namespace: The namespace containing the vectors
+        metadata_filter: Filter to apply on metadata fields
+
+    Returns:
+        Boolean indicating success
+    """
+    global index
+    if index is None:
+        init_pinecone()
+
+    try:
+        # Prepare filter dict
+        filter_dict = {}
+        for key, value in metadata_filter.items():
+            filter_dict[key] = {"$eq": value}
+
+        # Delete vectors matching filter
+        index.delete(filter=filter_dict, namespace=namespace)
+        logger.info(
+            f"Deleted vectors with filter {filter_dict} from namespace {namespace}"
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting vectors by filter from Pinecone: {e}")
+        return False
+
+
+def query_pinecone_vectors(
+    query_embedding: List[float],
+    namespace: str = "image-prompts",
+    top_k: int = 10,
+    threshold: float = 0.7,
+    include_values: bool = False,
+    metadata_filter: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Query Pinecone for vectors and return detailed match information.
+
+    Args:
+        query_embedding: The embedding vector to query with
+        namespace: The namespace to query
+        top_k: Number of results to return
+        threshold: Minimum similarity score to include
+        include_values: Whether to include vector values in the response
+        metadata_filter: Optional filter to apply on metadata fields
+
+    Returns:
+        List of match dictionaries
+    """
+    global index
+    if index is None:
+        init_pinecone()
+
+    try:
+        # Prepare query parameters
+        query_params = {
+            "vector": query_embedding,
+            "top_k": top_k,
+            "namespace": namespace,
+            "include_values": include_values,
+            "include_metadata": True,
+        }
+
+        # Add filter if provided
+        if metadata_filter:
+            filter_dict = {}
+            for key, value in metadata_filter.items():
+                filter_dict[key] = {"$eq": value}
+            query_params["filter"] = filter_dict
+
+        # Execute query
+        response = index.query(**query_params)
+
+        matches = []
+        if hasattr(response, "matches"):
+            for match in response.matches:
+                if match.score >= threshold:
+                    match_data = {
+                        "id": match.id,
+                        "score": match.score,
+                        "metadata": match.metadata,
+                    }
+                    matches.append(match_data)
+
+        return matches
+    except Exception as e:
+        logger.error(f"Error querying Pinecone: {e}")
+        raise

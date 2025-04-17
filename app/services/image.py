@@ -14,6 +14,7 @@ from app.utils.pinecone import (
     search_similar_prompts,
     upsert_prompt_embedding,
 )
+from app.constants.dummy import get_dummy_image_response
 
 logger = get_logger(__name__)
 
@@ -34,15 +35,18 @@ async def generate_image_from_prompt(
         URL of the generated or retrieved image
     """
     try:
-        enhanced_prompt = f"{prompt} (1:1 aspect ratio, 8K, highly detailed, {style})"
+        enhanced_prompt = create_enhanced_prompt(prompt, style)
         logger.info(f"Processing image request with prompt: {enhanced_prompt}")
 
         # First, generate embedding for semantic search
         embedding = await asyncio.to_thread(get_embedding, enhanced_prompt)
 
-        # Search Pinecone for similar prompts
+        # Search Pinecone for similar prompts - explicitly specify namespace
         existing_image_url = await asyncio.to_thread(
-            search_similar_prompts, embedding, similarity_threshold
+            search_similar_prompts,
+            embedding,
+            similarity_threshold,
+            namespace="image-prompts",
         )
 
         # If similar prompt found, return existing image URL
@@ -55,8 +59,10 @@ async def generate_image_from_prompt(
         # Otherwise, generate new image
         logger.info(f"No similar prompt found. Generating new image with OpenAI")
 
+        return get_dummy_image_response()
         client = OpenAI()
         # Wrap the synchronous API call in asyncio.to_thread to avoid blocking
+
         response = await asyncio.to_thread(
             client.images.generate,
             model="dall-e-2",
@@ -92,9 +98,13 @@ async def generate_image_from_prompt(
         )
         logger.info(f"Image uploaded to {image_url_final}")
 
-        # Store new embedding and image URL in Pinecone
+        # Store new embedding and image URL in Pinecone with explicit namespace
         await asyncio.to_thread(
-            upsert_prompt_embedding, enhanced_prompt, embedding, image_url_final
+            upsert_prompt_embedding,
+            enhanced_prompt,
+            embedding,
+            image_url_final,
+            namespace="image-prompts",
         )
         logger.info(f"Stored new prompt embedding and image URL in Pinecone")
 
@@ -105,9 +115,18 @@ async def generate_image_from_prompt(
         raise e
 
 
-async def create_image_prompt(content: str, style: str) -> str:
-    """Create a detailed image prompt from content excerpt."""
-    return f"{content}. Style: {style}"
+def create_enhanced_prompt(prompt: str, style: str) -> str:
+    """
+    Create an enhanced prompt for image generation.
+
+    Args:
+        prompt: The text prompt for image generation
+        style: The style to apply to the image
+
+    Returns:
+        Enhanced prompt string
+    """
+    return f"{prompt} (1:1 aspect ratio, 8K, highly detailed, {style})"
 
 
 # Example usage

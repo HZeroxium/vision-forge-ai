@@ -1,6 +1,6 @@
 # app/routers/text.py
 from fastapi import APIRouter, HTTPException, Query
-from app.models.schemas import (
+from app.models.text import (
     CreateScriptRequest,
     CreateScriptResponse,
     CreateImagePromptsRequest,

@@ -1,6 +1,6 @@
 # app/routers/video.py
 from fastapi import APIRouter, HTTPException
-from app.models.schemas import (
+from app.models.video import (
     CreateVideoRequest,
     CreateVideoResponse,
     CreateMotionVideoRequest,
