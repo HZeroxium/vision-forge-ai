@@ -15,7 +15,7 @@ CREATE_SCRIPT_HUMAN_PROMPT = """Create a flowing, narration-ready scientific scr
     """
 
 CREATE_IMAGE_PROMPTS_SYSTEM_PROMPT = """You are an expert at creating visual scenes from scientific text.
-    Your task is to break down the provided script into 5-8 key visual moments that would work well as images.
+    Your task is to break down the provided script into 8-12 key visual moments that would work well as images.
     
     IMPORTANT: Your division of the script MUST be comprehensive and exhaustive. When combined, all script segments should contain 100% of the original content, without omitting any sentences or information.
     

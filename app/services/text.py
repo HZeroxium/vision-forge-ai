@@ -1,5 +1,7 @@
 # app/services/text.py
 import re
+import json
+import asyncio
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -19,6 +21,11 @@ from app.constants.prompts import (
 )
 from app.utils.logger import get_logger
 from app.utils.rag import get_context_for_topic, enhance_prompt_with_rag
+from app.utils.pinecone import (
+    get_embedding,
+    search_similar_prompts,
+    upsert_prompt_embedding,
+)
 
 logger = get_logger(__name__)
 
@@ -70,21 +77,60 @@ def extract_prompts_from_text(response: str) -> list:
 async def create_script(request: CreateScriptRequest) -> CreateScriptResponse:
     """
     Generate a scientific video script using the ChatOpenAI model with RAG enhancement.
-
-    Retrieves relevant information from trusted sources before generating content,
+    First checks Pinecone for similar scripts, and returns existing script if found.
+    Otherwise, retrieves relevant information from trusted sources before generating content,
     making the output more accurate and reliable.
     """
-    # Get enhanced context using RAG with the language from the request and more Wikipedia sources
+    # Generate an embedding for the request title and style
+    search_query = f"{request.title} {request.style} {request.language}"
+    embedding = await asyncio.to_thread(get_embedding, search_query)
+
+    # Search Pinecone for similar scripts
+    logger.info(f"Checking Pinecone for similar scripts to: '{request.title}'")
+    metadata_filter = {"language": request.language} if request.language else None
+    result = await asyncio.to_thread(
+        search_similar_prompts,
+        embedding,
+        threshold=0.85,
+        namespace="scripts",
+        metadata_filter=metadata_filter,
+        return_full_metadata=True,
+    )
+
+    existing_script_url, metadata = result
+
+    # If a similar script was found in Pinecone, return it
+    if existing_script_url and metadata:
+        logger.info(
+            f"Found similar script in Pinecone: {metadata.get('title', 'Unknown title')}"
+        )
+
+        # Parse sources if they exist
+        sources = None
+        if metadata.get("sources_json"):
+            try:
+                sources_data = json.loads(metadata["sources_json"])
+                sources = [Source(**source) for source in sources_data]
+            except Exception as e:
+                logger.error(f"Error parsing sources from Pinecone metadata: {e}")
+
+        return CreateScriptResponse(
+            content=metadata.get("content", ""), sources=sources
+        )
+
+    logger.info(f"No similar script found in Pinecone. Generating new script.")
+
+    # Get enhanced context using RAG with the language from the request
     rag_context = await get_context_for_topic(
         request.title,
         language=request.language,
-        wiki_results=3,  # Get 3 Wikipedia articles for more comprehensive context
+        wiki_results=3,
     )
 
     # Initialize the ChatOpenAI model
     chat_model = ChatOpenAI(
         model=settings.OPENAI_MODEL_NAME,
-        temperature=0.6,  # Slightly reduced temperature for more coherent flow
+        temperature=0.6,
     )
 
     # Enhance the human prompt with context from trusted sources
@@ -139,16 +185,76 @@ async def create_script(request: CreateScriptRequest) -> CreateScriptResponse:
     logger.info(
         f"Successfully generated script for: {request.title} with {len(sources) if sources else 0} sources"
     )
+
+    # Store the script in Pinecone
+    try:
+        # Convert sources to JSON string for storage
+        sources_json = None
+        if sources:
+            sources_json = json.dumps([source.model_dump() for source in sources])
+
+        # Store in Pinecone
+        await asyncio.to_thread(
+            upsert_prompt_embedding,
+            search_query,
+            embedding,
+            request.title,  # Using title as the URL field
+            metadata={
+                "title": request.title,
+                "content": response,
+                "style": request.style,
+                "language": request.language,
+                "sources_json": sources_json,
+            },
+            namespace="scripts",
+        )
+        logger.info(f"Stored script for '{request.title}' in Pinecone")
+    except Exception as e:
+        logger.error(f"Failed to store script in Pinecone: {e}")
+
     return CreateScriptResponse(content=response, sources=sources)
 
 
 async def create_image_prompts(content: str, style: str) -> CreateImagePromptsResponse:
     """
     Generate a list of image prompts with associated script.
-    Each element will be a dict with keys:
-    - prompt: The prompt used to generate the image.
-    - script: The text script describing the motion (narration) content.
+    First checks Pinecone for similar image prompts, and returns existing prompts if found.
+    Otherwise, generates new image prompts and stores them in Pinecone.
     """
+    # Generate an embedding for the content and style
+    search_query = (
+        f"{content[:200]} {style}"  # Limit content to first 200 chars for search
+    )
+    embedding = await asyncio.to_thread(get_embedding, search_query)
+
+    # Search Pinecone for similar image prompts
+    logger.info(f"Checking Pinecone for similar image prompts")
+    metadata_filter = {"style": style} if style else None
+    result = await asyncio.to_thread(
+        search_similar_prompts,
+        embedding,
+        threshold=0.87,  # Slightly higher threshold for image prompts
+        namespace="image-prompts-sets",
+        metadata_filter=metadata_filter,
+        return_full_metadata=True,
+    )
+
+    existing_url, metadata = result
+
+    # If similar image prompts were found in Pinecone, return them
+    if existing_url and metadata and metadata.get("prompts_json"):
+        logger.info(f"Found similar image prompts in Pinecone for style: {style}")
+
+        try:
+            prompts_data = json.loads(metadata["prompts_json"])
+            return CreateImagePromptsResponse(
+                prompts=prompts_data, style=metadata.get("style", style)
+            )
+        except Exception as e:
+            logger.error(f"Error parsing image prompts from Pinecone metadata: {e}")
+
+    logger.info(f"No similar image prompts found in Pinecone. Generating new prompts.")
+
     # Initialize the model without RAG enhancement
     chat_model = ChatOpenAI(
         model=settings.OPENAI_MODEL_NAME,
@@ -185,4 +291,29 @@ async def create_image_prompts(content: str, style: str) -> CreateImagePromptsRe
     logger.info(
         f"Successfully created {len(prompts_dict_list)} image prompts with motion scripts"
     )
+
+    # Store the image prompts in Pinecone
+    try:
+        # Convert prompts to JSON string for storage
+        prompts_json = json.dumps(prompts_dict_list)
+
+        # Store in Pinecone
+        await asyncio.to_thread(
+            upsert_prompt_embedding,
+            search_query,
+            embedding,
+            search_query,  # Using search query as the URL field
+            metadata={
+                "content_summary": content[:200]
+                + "...",  # Store a summary of the content
+                "style": style,
+                "prompts_json": prompts_json,
+                "prompt_count": len(prompts_dict_list),
+            },
+            namespace="image-prompts-sets",
+        )
+        logger.info(f"Stored image prompts in Pinecone")
+    except Exception as e:
+        logger.error(f"Failed to store image prompts in Pinecone: {e}")
+
     return CreateImagePromptsResponse(prompts=prompts_dict_list, style=style)

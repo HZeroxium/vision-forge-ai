@@ -2,7 +2,7 @@
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from app.routers import text, image, video, audio, test
+from app.routers import text, image, video, audio
 from app.utils.logger import setup_logger
 from app.middlewares.request_logger import RequestLoggerMiddleware
 from app.middlewares.error_handlers import (
@@ -33,7 +33,6 @@ app.include_router(text.router, prefix="/text")
 app.include_router(image.router, prefix="/image")
 app.include_router(video.router, prefix="/video")
 app.include_router(audio.router, prefix="/audio")
-app.include_router(test.router, prefix="/test")
 
 if __name__ == "__main__":
     import uvicorn
