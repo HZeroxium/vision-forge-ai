@@ -14,6 +14,7 @@ from app.utils.pinecone import (
     search_similar_prompts,
     upsert_prompt_embedding,
 )
+from app.constants.dummy import get_dummy_audio_response
 
 logger = get_logger(__name__)
 
@@ -65,6 +66,9 @@ async def create_audio_from_script_openai(
 
         # Otherwise, generate new audio
         logger.info(f"No similar script found. Generating new audio with OpenAI")
+
+        audio_response = get_dummy_audio_response()
+        return audio_response.audio_url, audio_response.audio_duration
 
         client = OpenAI()
         response = client.audio.speech.create(

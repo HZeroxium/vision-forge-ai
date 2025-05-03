@@ -59,7 +59,10 @@ async def generate_image_from_prompt(
         # Otherwise, generate new image
         logger.info(f"No similar prompt found. Generating new image with OpenAI")
 
-        return get_dummy_image_response()
+        # Fix: Extract image_url string from the dummy response object
+        dummy_response = get_dummy_image_response()
+        return dummy_response.image_url
+
         client = OpenAI()
         # Wrap the synchronous API call in asyncio.to_thread to avoid blocking
 
