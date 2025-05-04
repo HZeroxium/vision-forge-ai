@@ -220,7 +220,7 @@ async def create_simple_video(request: CreateVideoRequest) -> str:
         temp_dir = os.path.join(TEMP_DIR, uuid.uuid4().hex)
         os.makedirs(temp_dir, exist_ok=True)
 
-        # Download audio - FIXED: Pass directory path to download_file, not full file path
+        # Download audio
         audio_path = await download_file(request.audio_url, temp_dir)
         logger.info(f"Downloaded audio to: {audio_path}")
 
@@ -258,8 +258,18 @@ async def create_simple_video(request: CreateVideoRequest) -> str:
             logger.info(
                 f"Creating motion video {i+1}/{len(request.image_urls)} with duration {duration:.2f}s"
             )
-            video_path = await create_motion_video_from_image(image_url, duration)
-            motion_video_paths.append(video_path)
+            try:
+                video_path = await create_motion_video_from_image(image_url, duration)
+                motion_video_paths.append(video_path)
+            except Exception as e:
+                logger.error(
+                    f"Error creating motion video {i+1}: {str(e)}. Trying fallback approach."
+                )
+                # If specific filter fails, try with stable filter as ultimate fallback
+                video_path = await create_motion_video_from_image(
+                    image_url, duration, motion_type="stable"
+                )
+                motion_video_paths.append(video_path)
 
         # Combine motion videos
         return await combine_videos_with_audio(motion_video_paths, audio_path)

@@ -15,7 +15,9 @@ os.makedirs(MOTION_VIDEOS_DIR, exist_ok=True)
 logger = get_logger(__name__)
 
 
-async def create_motion_video_from_image(image_url: str, duration: float) -> str:
+async def create_motion_video_from_image(
+    image_url: str, duration: float, motion_type: str = None
+) -> str:
     """
     Create a motion video clip from a single image using FFmpeg's zoompan filter.
     Applies a variety of Ken Burns style effects randomly chosen for visual diversity.
@@ -24,6 +26,7 @@ async def create_motion_video_from_image(image_url: str, duration: float) -> str
     Args:
         image_url: URL of the input image.
         duration: Duration of the output video clip in seconds.
+        motion_type: Optional specific motion effect to apply. If None, one will be randomly chosen.
 
     Returns:
         The local file path to the generated motion video clip.
@@ -38,24 +41,31 @@ async def create_motion_video_from_image(image_url: str, duration: float) -> str
     video_filename = f"{uuid.uuid4().hex}.mp4"
     video_path = os.path.join(MOTION_VIDEOS_DIR, video_filename)
 
-    # Define parameters for the video
-    fps = 30  # Default fps for better performance, can be adjusted
+    # Define parameters for the video - use higher fps for smoother motion
+    fps = 60  # Default fps for better performance, can be adjusted
     total_frames = int(duration * fps)
 
-    # Choose a random motion effect from available options
+    # Choose a motion effect if not specified - include a good mix of stable and dynamic effects
     motion_types = [
-        "zoom_in_center",
-        "zoom_out_center",
-        "pan_left_to_right",
-        "pan_right_to_left",
-        "pan_top_to_bottom",
-        "pan_bottom_to_top",
-        "zoom_and_pan_random",
-        "slow_drift",
-        "stable",  # Add stable as a fallback option in random selection
+        # "zoom_in_center",
+        # "zoom_out_center",
+        # "pan_left_to_right",
+        # "pan_right_to_left",
+        # "slow_drift",
+        # "stable",  # Include stable as it works well
+        "pulse_zoom",
+        "bounce",
+        "ken_burns_slow",  # Improved Ken Burns effect
+        # "zoom_rotate",  # Zoom with rotation
     ]
 
-    motion_type = random.choice(motion_types)
+    # For very short clips, prefer simple effects that look good in short durations
+    if duration < 5.0:
+        motion_types = ["stable", "zoom_in_center", "zoom_out_center"]
+
+    if not motion_type:
+        motion_type = random.choice(motion_types)
+
     logger.info(f"Applying motion effect: {motion_type} for duration {duration}s")
 
     # Get the filter string for the chosen motion type
@@ -76,7 +86,7 @@ async def create_motion_video_from_image(image_url: str, duration: float) -> str
             ]
         )
 
-    # Input file
+    # Input file with high quality decode options
     ffmpeg_cmd.extend(
         [
             "-loop",
@@ -95,7 +105,7 @@ async def create_motion_video_from_image(image_url: str, duration: float) -> str
         ]
     )
 
-    # Output encoding configuration
+    # Output encoding configuration with quality settings
     if HW_ACCEL["available"]:
         # Use GPU encoding
         ffmpeg_cmd.extend(
@@ -109,11 +119,15 @@ async def create_motion_video_from_image(image_url: str, duration: float) -> str
         if HW_ACCEL["nvidia"]:
             ffmpeg_cmd.extend(
                 [
-                    # Optimize for NVIDIA encoding
+                    # Optimize for NVIDIA encoding with better quality
                     "-preset",
                     "p4",  # Fast encoding preset
                     "-b:v",
-                    "5M",  # Target bitrate
+                    "6M",  # Increased bitrate for smoother motion
+                    "-rc",
+                    "vbr",  # Variable bitrate for better quality
+                    "-rc-lookahead",
+                    "20",  # Look ahead for better motion prediction
                 ]
             )
         elif HW_ACCEL["intel"]:
@@ -123,17 +137,17 @@ async def create_motion_video_from_image(image_url: str, duration: float) -> str
                     "-preset",
                     "medium",
                     "-b:v",
-                    "5M",  # Target bitrate
+                    "6M",  # Increased bitrate
                 ]
             )
     else:
-        # Fallback to CPU encoding
+        # Fallback to CPU encoding with quality settings
         ffmpeg_cmd.extend(
             [
                 "-c:v",
                 "libx264",  # Use H.264 codec
                 "-crf",
-                "23",  # Balance quality and file size
+                "22",  # Slightly better quality (lower is better)
                 "-preset",
                 "medium",  # Encoding speed/compression tradeoff
             ]
