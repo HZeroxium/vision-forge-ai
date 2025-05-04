@@ -46,7 +46,7 @@ class QueryImageEmbeddingRequest(BaseModel):
 
     query_text: str = Field(..., description="Text to search for similar images")
     top_k: int = Field(10, description="Number of results to return")
-    threshold: float = Field(0.7, description="Minimum similarity score")
+    threshold: float = Field(0.85, description="Minimum similarity score")
 
 
 class DeleteImagesByFilterRequest(BaseModel):

@@ -2,7 +2,12 @@
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from app.routers import text, image, video, audio
+from app.routers import text, image, video, audio, storage
+from app.routers.pinecone import (
+    text as pinecone_text,
+    image as pinecone_image,
+    audio as pinecone_audio,
+)
 from app.utils.logger import setup_logger
 from app.middlewares.request_logger import RequestLoggerMiddleware
 from app.middlewares.error_handlers import (
@@ -29,10 +34,16 @@ os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
 app.mount("/images", StaticFiles(directory=settings.OUTPUT_DIR), name="images")
 
 # Include routers
-app.include_router(text.router, prefix="/text")
-app.include_router(image.router, prefix="/image")
-app.include_router(video.router, prefix="/video")
-app.include_router(audio.router, prefix="/audio")
+app.include_router(text.router, prefix="/api", tags=["text"])
+app.include_router(image.router, prefix="/image", tags=["image"])
+app.include_router(video.router, prefix="/video", tags=["video"])
+app.include_router(audio.router, prefix="/audio", tags=["audio"])
+app.include_router(storage.router, prefix="/storage", tags=["storage"])
+
+# Include pinecone routers
+app.include_router(pinecone_text.router, prefix="/api/pinecone", tags=["pinecone"])
+app.include_router(pinecone_image.router, prefix="/api/pinecone", tags=["pinecone"])
+app.include_router(pinecone_audio.router, prefix="/api/pinecone", tags=["pinecone"])
 
 if __name__ == "__main__":
     import uvicorn
