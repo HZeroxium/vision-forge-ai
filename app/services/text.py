@@ -81,8 +81,11 @@ async def create_script(request: CreateScriptRequest) -> CreateScriptResponse:
     Otherwise, retrieves relevant information from trusted sources before generating content,
     making the output more accurate and reliable.
     """
-    # Generate an embedding for the request title and style
-    search_query = f"{request.title} {request.style} {request.language}"
+    # Generate an embedding for the request title, style, language and user_story if available
+    search_components = [request.title, request.style, request.language]
+    if request.user_story:
+        search_components.append(request.user_story)
+    search_query = " ".join(search_components)
     embedding = await asyncio.to_thread(get_embedding, search_query)
 
     # Search Pinecone for similar scripts
@@ -133,6 +136,11 @@ async def create_script(request: CreateScriptRequest) -> CreateScriptResponse:
         temperature=0.6,
     )
 
+    # Prepare user story context for the prompt
+    user_story_context = (
+        f"Personal Context: {request.user_story}" if request.user_story else ""
+    )
+
     # Enhance the human prompt with context from trusted sources
     enhanced_human_prompt = CREATE_SCRIPT_HUMAN_PROMPT
     if rag_context and rag_context.sources:
@@ -162,6 +170,7 @@ async def create_script(request: CreateScriptRequest) -> CreateScriptResponse:
             "title": request.title,
             "style": request.style,
             "language_name": language_name,
+            "user_story_context": user_story_context,
         }
     )
 
@@ -193,19 +202,25 @@ async def create_script(request: CreateScriptRequest) -> CreateScriptResponse:
         if sources:
             sources_json = json.dumps([source.model_dump() for source in sources])
 
-        # Store in Pinecone
+        # Store in Pinecone with user_story in metadata
+        metadata_dict = {
+            "title": request.title,
+            "content": response,
+            "style": request.style,
+            "language": request.language,
+            "sources_json": sources_json,
+        }
+
+        # Include user_story in metadata if available
+        if request.user_story:
+            metadata_dict["user_story"] = request.user_story
+
         await asyncio.to_thread(
             upsert_prompt_embedding,
             search_query,
             embedding,
             request.title,  # Using title as the URL field
-            metadata={
-                "title": request.title,
-                "content": response,
-                "style": request.style,
-                "language": request.language,
-                "sources_json": sources_json,
-            },
+            metadata=metadata_dict,
             namespace="scripts",
         )
         logger.info(f"Stored script for '{request.title}' in Pinecone")
@@ -215,16 +230,16 @@ async def create_script(request: CreateScriptRequest) -> CreateScriptResponse:
     return CreateScriptResponse(content=response, sources=sources)
 
 
-async def create_image_prompts(content: str, style: str) -> CreateImagePromptsResponse:
+async def create_image_prompts(
+    content: str, style: str = "realistic"
+) -> CreateImagePromptsResponse:
     """
     Generate a list of image prompts with associated script.
     First checks Pinecone for similar image prompts, and returns existing prompts if found.
     Otherwise, generates new image prompts and stores them in Pinecone.
     """
     # Generate an embedding for the content and style
-    search_query = (
-        f"{content[:200]} {style}"  # Limit content to first 200 chars for search
-    )
+    search_query = f"{content} {style}"  # Limit content to first 200 chars for search
     embedding = await asyncio.to_thread(get_embedding, search_query)
 
     # Search Pinecone for similar image prompts

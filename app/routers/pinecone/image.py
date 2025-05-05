@@ -25,22 +25,29 @@ logger = get_logger(__name__)
 async def upsert_image_embedding(request: UpsertImageEmbeddingRequest):
     """
     Manually upsert an image embedding to Pinecone.
+    Uses raw prompt for embedding vector (for similarity search)
+    while storing enhanced prompt in metadata (for image generation).
     """
     try:
-        # Create enhanced prompt
+        # Create enhanced prompt but use raw prompt for embedding
         enhanced_prompt = (
             f"{request.prompt} (1:1 aspect ratio, 8K, highly detailed, {request.style})"
         )
 
-        # Generate embedding for the prompt
-        embedding = await asyncio.to_thread(get_embedding, enhanced_prompt)
+        # Generate embedding from the raw prompt for better similarity matching
+        embedding = await asyncio.to_thread(get_embedding, request.prompt)
 
-        # Upsert to Pinecone
+        # Upsert to Pinecone with both raw and enhanced prompts in metadata
         success = await asyncio.to_thread(
             upsert_prompt_embedding,
-            enhanced_prompt,
+            request.prompt,  # Use raw prompt as key
             embedding,
             request.image_url,
+            metadata={
+                "raw_prompt": request.prompt,
+                "enhanced_prompt": enhanced_prompt,
+                "style": request.style,
+            },
             namespace="image-prompts",
         )
 

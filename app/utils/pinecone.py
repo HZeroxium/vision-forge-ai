@@ -63,9 +63,10 @@ def search_similar_prompts(
 ) -> Union[Optional[str], Tuple[Optional[str], Dict[str, Any]]]:
     """
     Search Pinecone for similar prompts and return the URL and optionally additional metadata.
+    Uses raw prompt embeddings for similarity matching.
 
     Args:
-        prompt_embedding: The embedding vector of the prompt
+        prompt_embedding: The embedding vector of the prompt (should be from raw prompt)
         threshold: The similarity threshold (default 0.85)
         top_k: Number of results to return
         namespace: Pinecone namespace to search (default "image-prompts")

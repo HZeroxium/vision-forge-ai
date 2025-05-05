@@ -20,6 +20,11 @@ class CreateScriptRequest(BaseModel):
         description="ISO language code for script generation (en, es, fr, etc.)",
         example="vn",
     )
+    user_story: Optional[str] = Field(
+        None,
+        description="Personal context to customize the content generation",
+        example="I'm a medical student interested in how AI can help with early diagnostics",
+    )
 
 
 class Source(BaseModel):
@@ -44,7 +49,10 @@ class CreateImagePromptsRequest(BaseModel):
     content: str = Field(
         ..., description="The script content to extract image prompts from"
     )
-    style: str = Field(..., description="Desired visual style for the image prompts")
+    style: Optional[str] = Field(
+        "realistic",
+        description="The style for the image prompts (e.g. realistic, cartoon, etc.)",
+    )
 
 
 class ImagePromptDetail(BaseModel):

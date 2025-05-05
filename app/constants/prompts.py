@@ -10,8 +10,11 @@ CREATE_SCRIPT_HUMAN_PROMPT = """Create a flowing, narration-ready scientific scr
 
     Style: {style}
     Language: {language_name}
+    {user_story_context}
 
     The script should be educational, engaging, and scientifically accurate, written as pure narration text that can be read aloud without interruption.
+    
+    IMPORTANT: The writing style should have a stronger influence on the tone and structure of the content than the personal context. The personal context should primarily influence examples and relevance of the content.
     """
 
 CREATE_IMAGE_PROMPTS_SYSTEM_PROMPT = """You are an expert at creating visual scenes from scientific text.
@@ -37,7 +40,7 @@ CREATE_IMAGE_PROMPTS_SYSTEM_PROMPT = """You are an expert at creating visual sce
     2. **Root System Development**: A cross-section of a young plant with an intricate network of roots...
     """
 
-CREATE_IMAGE_PROMPTS_HUMAN_PROMPT = """Create 5-8 image prompts based on this scientific script:
+CREATE_IMAGE_PROMPTS_HUMAN_PROMPT = """Create 8 - 12 image prompts based on this scientific script:
 
     {content}
 

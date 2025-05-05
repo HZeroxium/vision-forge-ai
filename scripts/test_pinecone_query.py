@@ -30,11 +30,12 @@ async def test_pinecone_query(
     try:
         # Format the prompt as it would be in the application
         enhanced_prompt = f"{prompt} (1:1 aspect ratio, 8K, highly detailed, {style})"
-        logger.info(f"Testing with enhanced prompt: {enhanced_prompt}")
+        logger.info(f"Testing with raw prompt: {prompt}")
+        logger.info(f"Enhanced prompt for display only: {enhanced_prompt}")
 
-        # Generate embedding for the prompt
-        logger.info("Generating embedding...")
-        embedding = get_embedding(enhanced_prompt)
+        # Generate embedding for the RAW prompt
+        logger.info("Generating embedding from raw prompt...")
+        embedding = get_embedding(prompt)
 
         # Search Pinecone for similar prompts
         logger.info(f"Searching Pinecone with threshold {threshold}...")

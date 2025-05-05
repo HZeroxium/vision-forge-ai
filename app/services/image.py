@@ -35,13 +35,14 @@ async def generate_image_from_prompt(
         URL of the generated or retrieved image
     """
     try:
+        # Create enhanced prompt for image generation
         enhanced_prompt = create_enhanced_prompt(prompt, style)
         logger.info(f"Processing image request with prompt: {enhanced_prompt}")
 
-        # First, generate embedding for semantic search
-        embedding = await asyncio.to_thread(get_embedding, enhanced_prompt)
+        # First, generate embedding for the RAW prompt (for semantic search)
+        embedding = await asyncio.to_thread(get_embedding, prompt)
 
-        # Search Pinecone for similar prompts - explicitly specify namespace
+        # Search Pinecone for similar prompts using raw prompt embedding
         existing_image_url = await asyncio.to_thread(
             search_similar_prompts,
             embedding,
@@ -56,12 +57,8 @@ async def generate_image_from_prompt(
             )
             return existing_image_url
 
-        # Otherwise, generate new image
+        # Otherwise, generate new image using the ENHANCED prompt
         logger.info(f"No similar prompt found. Generating new image with OpenAI")
-
-        # Fix: Extract image_url string from the dummy response object
-        dummy_response = get_dummy_image_response()
-        return dummy_response.image_url
 
         client = OpenAI()
         # Wrap the synchronous API call in asyncio.to_thread to avoid blocking
@@ -104,9 +101,14 @@ async def generate_image_from_prompt(
         # Store new embedding and image URL in Pinecone with explicit namespace
         await asyncio.to_thread(
             upsert_prompt_embedding,
-            enhanced_prompt,
+            prompt,  # Store raw prompt as key
             embedding,
             image_url_final,
+            metadata={
+                "raw_prompt": prompt,
+                "enhanced_prompt": enhanced_prompt,
+                "style": style,
+            },
             namespace="image-prompts",
         )
         logger.info(f"Stored new prompt embedding and image URL in Pinecone")

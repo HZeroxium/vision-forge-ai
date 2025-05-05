@@ -1,7 +1,9 @@
 # app/main.py
+
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from app.routers import text, image, video, audio, storage
 from app.routers.pinecone import (
     text as pinecone_text,
@@ -23,6 +25,14 @@ app = FastAPI(title="FastAPI AI Server")
 # Add middlewares
 app.add_middleware(RequestLoggerMiddleware)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Register global exception handlers
 app.add_exception_handler(Exception, global_exception_handler)
 app.add_exception_handler(HTTPException, http_exception_handler)
@@ -34,16 +44,16 @@ os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
 app.mount("/images", StaticFiles(directory=settings.OUTPUT_DIR), name="images")
 
 # Include routers
-app.include_router(text.router, prefix="/api", tags=["text"])
+app.include_router(text.router, prefix="/text", tags=["text"])
 app.include_router(image.router, prefix="/image", tags=["image"])
 app.include_router(video.router, prefix="/video", tags=["video"])
 app.include_router(audio.router, prefix="/audio", tags=["audio"])
 app.include_router(storage.router, prefix="/storage", tags=["storage"])
 
 # Include pinecone routers
-app.include_router(pinecone_text.router, prefix="/api/pinecone", tags=["pinecone"])
-app.include_router(pinecone_image.router, prefix="/api/pinecone", tags=["pinecone"])
-app.include_router(pinecone_audio.router, prefix="/api/pinecone", tags=["pinecone"])
+app.include_router(pinecone_text.router, prefix="/pinecone", tags=["pinecone"])
+app.include_router(pinecone_image.router, prefix="/pinecone", tags=["pinecone"])
+app.include_router(pinecone_audio.router, prefix="/pinecone", tags=["pinecone"])
 
 if __name__ == "__main__":
     import uvicorn

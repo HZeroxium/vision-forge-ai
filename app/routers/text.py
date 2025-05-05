@@ -12,8 +12,6 @@ from app.services.text import create_script, create_image_prompts
 from app.utils.logger import get_logger
 from app.constants.dummy import DUMMY_SCRIPT_RESPONSE, DUMMY_IMAGE_PROMPTS_RESPONSE
 from typing import Optional
-import json
-import asyncio
 
 router = APIRouter()
 logger = get_logger(__name__)

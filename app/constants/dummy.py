@@ -95,7 +95,10 @@ _audio_randomizer = CyclicRandomizer(AUDIO_URLS)
 
 # Get random image response and audio response with cycling
 def get_dummy_image_response():
-    return CreateImageResponse(image_url=_image_randomizer.get_next())
+    # return CreateImageResponse(image_url=_image_randomizer.get_next())
+    return CreateImageResponse(
+        image_url="https://png.pngtree.com/png-vector/20190223/ourmid/pngtree-vector-picture-icon-png-image_695350.jpg"
+    )
 
 
 def get_dummy_audio_response():
