@@ -37,7 +37,7 @@ async def generate_image_from_prompt(
     try:
         # Create enhanced prompt for image generation
         enhanced_prompt = create_enhanced_prompt(prompt, style)
-        logger.info(f"Processing image request with prompt: {enhanced_prompt}")
+        logger.info(f"Processing image request with prompt: {prompt}")
 
         # First, generate embedding for the RAW prompt (for semantic search)
         embedding = await asyncio.to_thread(get_embedding, prompt)
@@ -59,6 +59,9 @@ async def generate_image_from_prompt(
 
         # Otherwise, generate new image using the ENHANCED prompt
         logger.info(f"No similar prompt found. Generating new image with OpenAI")
+
+        image_response = get_dummy_image_response()
+        return image_response.image_url
 
         client = OpenAI()
         # Wrap the synchronous API call in asyncio.to_thread to avoid blocking

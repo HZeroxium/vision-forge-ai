@@ -32,6 +32,12 @@ class CreateMotionVideoRequest(BaseModel):
     duration: Optional[float] = Field(
         10.0, description="Duration of the motion video in seconds (default: 10.0)"
     )
+    script: Optional[str] = Field(
+        None, description="Optional script to generate audio narration for this video"
+    )
+    voice: Optional[str] = Field(
+        "alloy", description="Voice ID to use for audio narration (default: 'alloy')"
+    )
 
 
 class CreateMotionVideoResponse(BaseModel):

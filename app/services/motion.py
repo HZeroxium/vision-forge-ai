@@ -7,6 +7,7 @@ from app.utils.media import download_file, HW_ACCEL
 from app.utils.video_filters import get_motion_filter
 import uuid
 import asyncio
+from app.services.audio import create_audio_from_script_openai
 
 # Directory to store generated motion video segments
 MOTION_VIDEOS_DIR = os.path.join(settings.OUTPUT_DIR, "motion_videos")
@@ -16,17 +17,22 @@ logger = get_logger(__name__)
 
 
 async def create_motion_video_from_image(
-    image_url: str, duration: float, motion_type: str = None
+    image_url: str,
+    duration: float,
+    motion_type: str = None,
+    script: str = None,
+    voice: str = "alloy",
 ) -> str:
     """
     Create a motion video clip from a single image using FFmpeg's zoompan filter.
-    Applies a variety of Ken Burns style effects randomly chosen for visual diversity.
-    Uses hardware acceleration when available and compatible.
+    If script is provided, also generates audio for the script and adds it to the video.
 
     Args:
         image_url: URL of the input image.
         duration: Duration of the output video clip in seconds.
         motion_type: Optional specific motion effect to apply. If None, one will be randomly chosen.
+        script: Optional script to generate audio narration.
+        voice: Voice ID to use for the audio narration if script is provided.
 
     Returns:
         The local file path to the generated motion video clip.
@@ -36,6 +42,33 @@ async def create_motion_video_from_image(
 
     # Download image
     image_path = await download_file(image_url, temp_dir)
+
+    # If script is provided, generate audio for it
+    audio_path = None
+    if script:
+        logger.info(f"Generating audio for script with voice '{voice}'")
+        try:
+            audio_url, audio_duration = await create_audio_from_script_openai(
+                script, voice
+            )
+
+            # Always use audio duration for better synchronization when script is provided
+            if duration != audio_duration:
+                logger.info(
+                    f"Adjusting video duration from {duration:.2f}s to {audio_duration:.2f}s to match audio"
+                )
+            duration = audio_duration  # Always use audio duration for perfect sync
+
+            # Download the generated audio
+            # FIX: Don't include filename in the directory path
+            audio_path = await download_file(audio_url, temp_dir)
+            logger.info(
+                f"Audio generated successfully, duration: {audio_duration:.2f}s"
+            )
+        except Exception as e:
+            logger.error(f"Failed to generate audio for script: {str(e)}")
+            # Continue without audio if generation fails
+            audio_path = None
 
     # Define output video path
     video_filename = f"{uuid.uuid4().hex}.mp4"
@@ -47,19 +80,11 @@ async def create_motion_video_from_image(
 
     # Choose a motion effect if not specified - include a good mix of stable and dynamic effects
     motion_types = [
-        # "zoom_in_center",
-        # "zoom_out_center",
-        # "pan_left_to_right",
-        # "pan_right_to_left",
-        # "slow_drift",
-        # "stable",  # Include stable as it works well
         "pulse_zoom",
         "bounce",
-        "ken_burns_slow",  # Improved Ken Burns effect
-        # "zoom_rotate",  # Zoom with rotation
+        "ken_burns_slow",
     ]
 
-    # For very short clips, prefer simple effects that look good in short durations
     if duration < 5.0:
         motion_types = ["stable", "zoom_in_center", "zoom_out_center"]
 
@@ -68,16 +93,64 @@ async def create_motion_video_from_image(
 
     logger.info(f"Applying motion effect: {motion_type} for duration {duration}s")
 
-    # Get the filter string for the chosen motion type
+    # Generate video with motion effect
+    temp_video_path = await _generate_motion_video(
+        image_path, video_path, duration, fps, total_frames, motion_type
+    )
+
+    # If we have audio, add it to the video
+    if audio_path:
+        final_video_path = os.path.join(MOTION_VIDEOS_DIR, f"audio_{video_filename}")
+
+        # FFmpeg command to combine video with audio
+        cmd = [
+            settings.FFMPEG_PATH,
+            "-y",
+            "-i",
+            temp_video_path,
+            "-i",
+            audio_path,
+            "-c:v",
+            "copy",  # Copy video to avoid re-encoding
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-shortest",
+            final_video_path,
+        ]
+
+        logger.info("Adding audio to motion video")
+        process = await asyncio.create_subprocess_exec(
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+
+        if process.returncode != 0:
+            error_msg = stderr.decode("utf-8")
+            logger.error(f"FFmpeg error when adding audio: {error_msg}")
+            # Fall back to the video without audio
+            logger.info("Falling back to video without audio")
+            return temp_video_path
+
+        logger.info(f"Motion video with audio created at {final_video_path}")
+        return final_video_path
+
+    logger.info(f"Motion video created at {temp_video_path}")
+    return temp_video_path
+
+
+async def _generate_motion_video(
+    image_path, video_path, duration, fps, total_frames, motion_type=None
+):
+    """Helper function to generate the actual motion video with ffmpeg"""
     zoompan_filter = get_motion_filter(motion_type, total_frames, fps)
 
-    # Build FFmpeg command with hardware acceleration
     ffmpeg_cmd = [
         settings.FFMPEG_PATH,
-        "-y",  # Overwrite output if exists
+        "-y",
     ]
 
-    # Only add hardware acceleration if confirmed working
     if HW_ACCEL["available"]:
         ffmpeg_cmd.extend(
             [
@@ -86,28 +159,18 @@ async def create_motion_video_from_image(
             ]
         )
 
-    # Input file with high quality decode options
     ffmpeg_cmd.extend(
         [
             "-loop",
-            "1",  # Loop input image
+            "1",
             "-i",
-            image_path,  # Input image file
-        ]
-    )
-
-    # Always use filter - can't hardware accelerate these filters directly
-    # but can accelerate the encoding part
-    ffmpeg_cmd.extend(
-        [
+            image_path,
             "-vf",
-            zoompan_filter,  # Apply zoompan filter
+            zoompan_filter,
         ]
     )
 
-    # Output encoding configuration with quality settings
     if HW_ACCEL["available"]:
-        # Use GPU encoding
         ffmpeg_cmd.extend(
             [
                 "-c:v",
@@ -115,53 +178,48 @@ async def create_motion_video_from_image(
             ]
         )
 
-        # Add specific options for the encoder
         if HW_ACCEL["nvidia"]:
             ffmpeg_cmd.extend(
                 [
-                    # Optimize for NVIDIA encoding with better quality
                     "-preset",
-                    "p4",  # Fast encoding preset
+                    "p4",
                     "-b:v",
-                    "6M",  # Increased bitrate for smoother motion
+                    "6M",
                     "-rc",
-                    "vbr",  # Variable bitrate for better quality
+                    "vbr",
                     "-rc-lookahead",
-                    "20",  # Look ahead for better motion prediction
+                    "20",
                 ]
             )
         elif HW_ACCEL["intel"]:
             ffmpeg_cmd.extend(
                 [
-                    # Optimize for Intel encoding
                     "-preset",
                     "medium",
                     "-b:v",
-                    "6M",  # Increased bitrate
+                    "6M",
                 ]
             )
     else:
-        # Fallback to CPU encoding with quality settings
         ffmpeg_cmd.extend(
             [
                 "-c:v",
-                "libx264",  # Use H.264 codec
+                "libx264",
                 "-crf",
-                "22",  # Slightly better quality (lower is better)
+                "22",
                 "-preset",
-                "medium",  # Encoding speed/compression tradeoff
+                "medium",
             ]
         )
 
-    # Common parameters regardless of hardware acceleration
     ffmpeg_cmd.extend(
         [
             "-movflags",
-            "+faststart",  # Web optimization
+            "+faststart",
             "-t",
-            str(duration),  # Duration of output video
+            str(duration),
             "-pix_fmt",
-            "yuv420p",  # Ensure compatibility
+            "yuv420p",
             video_path,
         ]
     )
@@ -179,10 +237,8 @@ async def create_motion_video_from_image(
         error_msg = stderr.decode("utf-8")
         logger.error(f"FFmpeg error: {error_msg}")
 
-        # Try again with simpler settings if first attempt failed
         logger.info("First attempt failed, trying with simpler settings...")
 
-        # Simplified command without hardware acceleration
         simple_cmd = [
             settings.FFMPEG_PATH,
             "-y",
@@ -248,7 +304,6 @@ async def combine_motion_videos(video_paths: list) -> str:
     final_video_path = os.path.join(settings.OUTPUT_DIR, "videos", final_video_filename)
     os.makedirs(os.dirname(final_video_path), exist_ok=True)
 
-    # For concat, initially we use stream copy to avoid re-encoding
     ffmpeg_cmd = [
         settings.FFMPEG_PATH,
         "-y",
@@ -258,39 +313,10 @@ async def combine_motion_videos(video_paths: list) -> str:
         "0",
         "-i",
         list_filename,
+        "-c",
+        "copy",
+        final_video_path,
     ]
-
-    # For concat, we usually use copy to avoid re-encoding
-    # But if we need to re-encode, we would use hardware acceleration here
-    if False:  # Only enable if we need to re-encode during concat
-        if HW_ACCEL["available"] and HW_ACCEL["encoder"]:
-            ffmpeg_cmd.extend(
-                [
-                    "-c:v",
-                    HW_ACCEL["encoder"],
-                    # Add encoder-specific options here
-                ]
-            )
-        else:
-            ffmpeg_cmd.extend(
-                [
-                    "-c:v",
-                    "libx264",
-                    "-crf",
-                    "23",
-                    "-preset",
-                    "medium",
-                ]
-            )
-    else:
-        ffmpeg_cmd.extend(
-            [
-                "-c",
-                "copy",  # Copy codec to avoid re-encoding
-            ]
-        )
-
-    ffmpeg_cmd.append(final_video_path)
 
     logger.info(f"Executing FFmpeg concat command: {' '.join(ffmpeg_cmd)}")
     process = await asyncio.create_subprocess_exec(

@@ -94,7 +94,7 @@ async def create_script(request: CreateScriptRequest) -> CreateScriptResponse:
     result = await asyncio.to_thread(
         search_similar_prompts,
         embedding,
-        threshold=0.85,
+        threshold=0.9,
         namespace="scripts",
         metadata_filter=metadata_filter,
         return_full_metadata=True,
@@ -239,18 +239,18 @@ async def create_image_prompts(
     Otherwise, generates new image prompts and stores them in Pinecone.
     """
     # Generate an embedding for the content and style
-    search_query = f"{content} {style}"  # Limit content to first 200 chars for search
+    search_query = f"{content}"  # Limit content to first 200 chars for search
     embedding = await asyncio.to_thread(get_embedding, search_query)
 
     # Search Pinecone for similar image prompts
     logger.info(f"Checking Pinecone for similar image prompts")
-    metadata_filter = {"style": style} if style else None
+    metadata_filter = {"style": "realistic"}
     result = await asyncio.to_thread(
         search_similar_prompts,
         embedding,
         threshold=0.87,  # Slightly higher threshold for image prompts
         namespace="image-prompts-sets",
-        metadata_filter=metadata_filter,
+        # metadata_filter=metadata_filter,
         return_full_metadata=True,
     )
 
@@ -321,7 +321,7 @@ async def create_image_prompts(
             metadata={
                 "content_summary": content[:200]
                 + "...",  # Store a summary of the content
-                "style": style,
+                # "style": "realistic",
                 "prompts_json": prompts_json,
                 "prompt_count": len(prompts_dict_list),
             },

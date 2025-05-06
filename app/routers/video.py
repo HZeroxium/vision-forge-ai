@@ -9,11 +9,15 @@ from app.models.video import (
     CreateMultiVoiceVideoRequest,
 )
 from app.services.video import (
-    create_simple_slideshow,
     create_motion_video_from_image,
     create_simple_video,
+)
+
+from app.services.temp import (
+    create_simple_slideshow,
     create_multi_voice_video,
 )
+
 from app.utils.logger import get_logger
 from app.constants.dummy import get_dummy_video_response
 
@@ -53,16 +57,25 @@ async def create_motion_video(request: CreateMotionVideoRequest):
     Endpoint to create a motion video from a single image with Ken Burns effect.
 
     Takes a single image URL and creates a motion video where the image zooms
-    and pans over the specified duration.
+    and pans over the specified duration. If a script is provided, also generates
+    audio narration for the script and adds it to the video.
 
     Returns the URL of the generated video.
     """
     try:
         logger.info(f"Creating motion video from image: {request.image_url}")
 
-        # Use the motion video creation method
+        if request.script:
+            logger.info(
+                f"Script provided, will generate audio narration with voice: {request.voice}"
+            )
+
+        # Use the motion video creation method with the optional script parameter
         video_url = await create_motion_video_from_image(
-            request.image_url, request.duration
+            request.image_url,
+            request.duration,
+            script=request.script,
+            voice=request.voice,
         )
 
         logger.info(f"Motion video creation successful, URL: {video_url}")
