@@ -248,7 +248,7 @@ async def create_image_prompts(
     result = await asyncio.to_thread(
         search_similar_prompts,
         embedding,
-        threshold=0.87,  # Slightly higher threshold for image prompts
+        threshold=0.9,  # Slightly higher threshold for image prompts
         namespace="image-prompts-sets",
         # metadata_filter=metadata_filter,
         return_full_metadata=True,
