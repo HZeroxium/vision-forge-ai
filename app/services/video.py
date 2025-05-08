@@ -108,7 +108,7 @@ async def create_simple_video(request: CreateVideoRequest) -> str:
                         image_url,
                         duration,
                         script=script,
-                        voice="alloy",  # Could make this configurable later
+                        voice=request.voice,  # Could make this configurable later
                     )
                     motion_video_paths.append(video_path)
                 except Exception as e:

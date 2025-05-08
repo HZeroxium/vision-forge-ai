@@ -17,6 +17,9 @@ class CreateVideoRequest(BaseModel):
     transition_duration: Optional[float] = Field(
         1.0, description="Duration of transition effects in seconds (default: 1.0)"
     )
+    voice: Optional[str] = Field(
+        "alloy", description="Voice ID to use for audio narration (default: 'alloy')"
+    )
 
 
 class CreateVideoResponse(BaseModel):

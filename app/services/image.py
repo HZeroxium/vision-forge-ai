@@ -37,7 +37,7 @@ async def generate_image_from_prompt(
     try:
         # Create enhanced prompt for image generation
         enhanced_prompt = create_enhanced_prompt(prompt, style)
-        logger.info(f"Processing image request with prompt: {prompt}")
+        logger.info(f"Processing image request with prompt: {enhanced_prompt}")
 
         # First, generate embedding for the RAW prompt (for semantic search)
         embedding = await asyncio.to_thread(get_embedding, prompt)
@@ -134,7 +134,14 @@ def create_enhanced_prompt(prompt: str, style: str) -> str:
     Returns:
         Enhanced prompt string
     """
-    return f"{prompt} (1:1 aspect ratio, 8K, highly detailed, {style})"
+    logger.info(f"Creating enhanced prompt for: {prompt} with style: {style}")
+    if style == "default":
+        return f"{prompt} (ultra-high resolution, 8K, scientific illustration style, physically accurate lighting, realistic scale and proportions, clean composition, soft ambient lighting, no text in image, highly detailed rendering, suitable for academic or educational use, 1:1 aspect ratio)"
+    elif style == "child":
+        return f"{prompt} (stylized cartoon, educational animation style, bright and cheerful colors, soft shading, child-friendly characters, round shapes, simple background, 1:1 aspect ratio, no text in image, clean composition)"
+    elif style == "in-depth":
+        return f"{prompt} (ultra-high resolution, 8K, scientific illustration style, physically accurate lighting, realistic scale and proportions, clean composition, soft ambient lighting, no text in image, highly detailed rendering, suitable for academic or educational use, 1:1 aspect ratio)"
+    return prompt
 
 
 # Example usage

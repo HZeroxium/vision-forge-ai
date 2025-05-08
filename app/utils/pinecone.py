@@ -77,6 +77,10 @@ def search_similar_prompts(
         Either the URL string if return_full_metadata is False, or
         a tuple of (URL, metadata dictionary) if return_full_metadata is True
     """
+    if not settings.ENABLE_SEARCH_PINECONE:
+        logger.info("Pinecone search is disabled (ENABLE_SEARCH_PINECONE=False)")
+        return (None, {}) if return_full_metadata else None
+
     global index
     if index is None:
         init_pinecone()
@@ -146,6 +150,10 @@ def upsert_prompt_embedding(
     Returns:
         Boolean indicating success
     """
+    if not settings.ENABLE_UPSERT_PINECONE:
+        logger.info("Pinecone upsert is disabled (ENABLE_UPSERT_PINECONE=False)")
+        return False
+
     global index
     if index is None:
         init_pinecone()

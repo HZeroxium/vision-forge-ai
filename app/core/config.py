@@ -31,6 +31,9 @@ class Settings(BaseSettings):
         "text-embedding-3-small", env="TEXT_EMBEDDING_MODEL"
     )
 
+    ENABLE_SEARCH_PINECONE: bool = Field(True, env="ENABLE_SEARCH_PINECONE")
+    ENABLE_UPSERT_PINECONE: bool = Field(True, env="ENABLE_UPSERT_PINECONE")
+
     class Config:
         env_file = ".env"
         case_sensitive = True

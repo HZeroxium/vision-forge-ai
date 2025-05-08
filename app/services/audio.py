@@ -35,6 +35,9 @@ async def create_audio_from_script_openai(
     try:
         logger.info(f"Processing audio request with script and voice: {voice}")
 
+        if voice not in ["alloy", "sage", "ash"]:
+            voice = "alloy"
+
         # First, generate embedding for semantic search
         embedding = await asyncio.to_thread(get_embedding, script)
 
