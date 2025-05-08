@@ -41,7 +41,7 @@ async def create_motion_video_from_image(
                 script, voice
             )
             # Adjust video duration to include a short pause
-            pause_duration = 1.0
+            pause_duration = 1.5
             duration = audio_duration + pause_duration
             audio_path = await download_file(audio_url, temp_dir)
         except Exception as e:
@@ -55,9 +55,13 @@ async def create_motion_video_from_image(
     total_frames = int(duration * fps)
 
     # Choose motion effect
-    effects = ["pulse_zoom", "bounce", "ken_burns_slow"]
-    if duration < 5.0:
-        effects = ["stable", "zoom_in_center", "zoom_out_center"]
+    effects = [
+        "pulse_zoom",
+        # "bounce",
+        # "ken_burns_slow"
+    ]
+    # if duration < 5.0:
+    #     effects = ["stable", "zoom_in_center", "zoom_out_center"]
     motion_type = motion_type or random.choice(effects)
 
     # Generate the motion-only video
