@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 
 async def generate_image_from_prompt(
-    prompt: str, style: str, size: str = "256x256", similarity_threshold: float = 0.85
+    prompt: str, style: str, size: str = "1024x1024", similarity_threshold: float = 0.85
 ) -> str:
     """
     Generate an image using OpenAI's DALL·E model or retrieve from Pinecone if similar prompt exists.
@@ -68,7 +68,7 @@ async def generate_image_from_prompt(
 
         response = await asyncio.to_thread(
             client.images.generate,
-            model="dall-e-2",
+            model="gpt-image-1",
             prompt=enhanced_prompt,
             n=1,
             size=size,
